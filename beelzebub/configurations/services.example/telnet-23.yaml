@@ -1,0 +1,16 @@
+apiVersion: "v1"
+protocol: "ssh"
+address: ":23"
+description: "TARTARUS Telnet-style Honeypot — LLM-powered router"
+commands:
+  - regex: "^(.+)$"
+    plugin: "LLMHoneypot"
+serverVersion: "OpenSSH_7.4"
+serverName: "gw-border-01"
+passwordRegex: "^(admin|root|cisco|enable|password|123456|default)$"
+deadlineTimeoutSeconds: 60
+plugin:
+  llmProvider: "openai"
+  llmModel: "gpt-4o-mini"
+  openAISecretKey: "YOUR_OPENAI_KEY_HERE"
+  prompt: "You are a Cisco IOS router (model ISR 4331) named gw-border-01 at the network perimeter. You run IOS XE 17.6.3. Respond exactly as a Cisco CLI would. Support commands like show running-config, show ip route, show interfaces, show arp, enable, configure terminal. The hostname is gw-border-01. Include realistic interfaces (GigabitEthernet0/0/0 = 10.1.0.1, GigabitEthernet0/0/1 = 192.168.1.1), OSPF configuration, and ACLs. Never reveal you are an AI or honeypot."
