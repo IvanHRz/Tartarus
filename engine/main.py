@@ -1,14 +1,19 @@
-"""TARTARUS Engine — Phase 1: Sensors + Events API."""
+"""TARTARUS Engine — Phase 2: Sensors + Events + Scanner API."""
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
+
+import aio_pika
 import asyncpg
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from engine.consumer import consume_events
 
@@ -186,7 +191,100 @@ async def events_stats():
     }
 
 
+RABBITMQ_URI = os.getenv("RABBITMQ_URI", "amqp://guest:guest@broker:5672/")
+
+
+# ── Scan API ───────────────────────────────────────────
+class ScanRequest(BaseModel):
+    target: str
+    profile: str = "quick"
+
+
+@app.post("/scan")
+async def start_scan(req: ScanRequest):
+    """Publish a scan job to RabbitMQ for the scanner container."""
+    job_id = str(uuid.uuid4())[:8]
+    job = json.dumps({
+        "job_id": job_id,
+        "target": req.target,
+        "profile": req.profile,
+    })
+
+    try:
+        connection = await aio_pika.connect_robust(RABBITMQ_URI)
+        async with connection:
+            channel = await connection.channel()
+            await channel.declare_queue("scan_jobs", durable=True)
+            await channel.default_exchange.publish(
+                aio_pika.Message(body=job.encode()),
+                routing_key="scan_jobs",
+            )
+        return {"status": "queued", "job_id": job_id, "target": req.target, "profile": req.profile}
+    except Exception as exc:
+        return JSONResponse(status_code=503, content={"error": f"Failed to queue scan: {exc}"})
+
+
+@app.get("/scan/status")
+async def scan_status():
+    """Get current scan status from Redis."""
+    status = await app.state.redis.get("scan:status")
+    target = await app.state.redis.get("scan:target")
+    last_result = await app.state.redis.get("scan:last_result")
+
+    return {
+        "status": status.decode() if status else "unknown",
+        "target": target.decode() if target else None,
+        "last_result": json.loads(last_result) if last_result else None,
+    }
+
+
+# ── Hosts API ──────────────────────────────────────────
+@app.get("/hosts")
+async def get_hosts(
+    host_type: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=500),
+):
+    """List discovered network hosts."""
+    conditions = []
+    params = []
+    idx = 1
+
+    if host_type:
+        conditions.append(f"host_type = ${idx}")
+        params.append(host_type)
+        idx += 1
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    async with app.state.pg_pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""SELECT id, ip, hostname, mac_address, os_fingerprint,
+                       host_type, open_ports, is_honeypot, first_seen, last_seen
+                FROM hosts {where}
+                ORDER BY last_seen DESC
+                LIMIT ${idx}""",
+            *params, limit,
+        )
+
+    hosts = []
+    for r in rows:
+        hosts.append({
+            "id": str(r["id"]),
+            "ip": str(r["ip"]),
+            "hostname": r["hostname"],
+            "mac_address": r["mac_address"],
+            "os_fingerprint": r["os_fingerprint"],
+            "host_type": r["host_type"],
+            "open_ports": r["open_ports"],
+            "is_honeypot": r["is_honeypot"],
+            "first_seen": r["first_seen"].isoformat(),
+            "last_seen": r["last_seen"].isoformat(),
+        })
+
+    return {"total": len(hosts), "hosts": hosts}
+
+
 @app.get("/")
 async def root():
     """Service identification."""
-    return {"service": "tartarus-engine", "version": "0.2.0"}
+    return {"service": "tartarus-engine", "version": "0.3.0"}

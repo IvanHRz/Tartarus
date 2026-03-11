@@ -13,8 +13,9 @@
             <span class="hdr-sub">IR Deception Platform</span>
         </div>
         <div class="hdr-right">
+            <span id="scanBadge" class="badge badge-muted">Scanner: Idle</span>
             <span id="statusBadge" class="badge badge-yellow">Connecting...</span>
-            <span class="hdr-version">v0.2.0</span>
+            <span class="hdr-version">v0.3.0</span>
         </div>
     </header>
 
@@ -40,6 +41,21 @@
             <div class="stat-value" id="statTCP">—</div>
             <div class="stat-label">TCP</div>
         </div>
+    </section>
+
+    <!-- Network Scanner -->
+    <section class="scan-bar">
+        <div class="scan-controls">
+            <input id="scanTarget" type="text" class="filter-input scan-input" placeholder="Target CIDR (e.g. 192.168.1.0/24)">
+            <select id="scanProfile" class="filter-select">
+                <option value="ping">Ping Sweep (~15s)</option>
+                <option value="quick" selected>Quick Scan (~3min)</option>
+                <option value="standard">Standard (~15min)</option>
+                <option value="full">Full Scan (~45min)</option>
+            </select>
+            <button id="btnScan" class="btn btn-scan">Scan Network</button>
+        </div>
+        <div id="scanStatus" class="scan-status"></div>
     </section>
 
     <!-- Filters -->
@@ -82,6 +98,29 @@
         <button id="btnPrev" class="btn btn-sm" disabled>Prev</button>
         <span id="pageInfo" class="page-info">Page 1</span>
         <button id="btnNext" class="btn btn-sm" disabled>Next</button>
+    </section>
+
+    <!-- Hosts Table -->
+    <section id="hostsSection" class="hosts-section">
+        <div class="section-header">
+            <h2 class="section-title">Discovered Hosts</h2>
+            <span id="hostsCount" class="badge badge-muted">0 hosts</span>
+        </div>
+        <table id="hostsTable">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Hostname</th>
+                    <th>OS</th>
+                    <th>Open Ports</th>
+                    <th>MAC</th>
+                    <th>Last Seen</th>
+                </tr>
+            </thead>
+            <tbody id="hostsBody">
+                <tr><td colspan="6" class="table-empty">No hosts discovered yet. Run a scan to discover network hosts.</td></tr>
+            </tbody>
+        </table>
     </section>
 
     <!-- Expanded Row Detail -->

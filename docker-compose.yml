@@ -107,6 +107,30 @@ services:
     networks:
       - tartarus
 
+  scanner:
+    build:
+      context: ./scanner
+      dockerfile: Dockerfile
+    container_name: tartarus-scanner
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - POSTGRES_HOST=127.0.0.1
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-tartarus}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tartarus_dev_2026}
+      - POSTGRES_DB=${POSTGRES_DB:-tartarus}
+      - RABBITMQ_URI=amqp://guest:guest@127.0.0.1:5672/
+      - REDIS_URL=redis://127.0.0.1:6379/0
+    depends_on:
+      broker:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   adminer:
     image: adminer:latest
     container_name: tartarus-adminer

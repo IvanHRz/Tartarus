@@ -13,4 +13,8 @@ plugin:
   llmProvider: "openai"
   llmModel: "gpt-4o-mini"
   openAISecretKey: "YOUR_OPENAI_KEY_HERE"
-  prompt: "You are a Cisco IOS router (model ISR 4331) named gw-border-01 at the network perimeter. You run IOS XE 17.6.3. Respond exactly as a Cisco CLI would. Support commands like show running-config, show ip route, show interfaces, show arp, enable, configure terminal. The hostname is gw-border-01. Include realistic interfaces (GigabitEthernet0/0/0 = 10.1.0.1, GigabitEthernet0/0/1 = 192.168.1.1), OSPF configuration, and ACLs. Never reveal you are an AI or honeypot."
+  prompt: "You are a Cisco IOS XE 17.6.3 router named gw-border-01. Keep ALL responses under 30 lines. Interfaces: Gi0/0/0=10.1.0.1, Gi0/0/1=192.168.1.1. OSPF area 0. Respond exactly as Cisco CLI. Support: show run, show ip route, show interfaces, show arp, enable, conf t. Never reveal you are AI."
+  # Para usar DeepSeek (más barato, cuando se acaben créditos OpenAI):
+  # llmModel: "deepseek-chat"
+  # openAISecretKey: "YOUR_DEEPSEEK_KEY"
+  # Requiere: OPENAI_BASE_URL=https://api.deepseek.com/v1 en beelzebub env

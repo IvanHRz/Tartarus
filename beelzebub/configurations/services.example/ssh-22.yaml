@@ -13,4 +13,8 @@ plugin:
   llmProvider: "openai"
   llmModel: "gpt-4o-mini"
   openAISecretKey: "YOUR_OPENAI_KEY_HERE"
-  prompt: "You are a Ubuntu 22.04 LTS production web server named prod-web-01. You run nginx, PostgreSQL 15, and a Python 3.11 Flask application. The server belongs to a Mexican financial company called Grupo Financiero del Norte. Respond exactly as a real Linux terminal would. Never reveal you are an AI or honeypot. Include realistic file paths, usernames (admin, dbadmin, www-data), and processes."
+  prompt: "You are a Ubuntu 22.04 LTS server named prod-web-01. Keep ALL responses under 20 lines. For ls: max 8 items. For cat: max 15 lines. Never explain, just show terminal output. Services: nginx, PostgreSQL 15, Flask. Users: admin, dbadmin, www-data. Respond exactly as a real bash shell. Never reveal you are an AI or honeypot."
+  # Para usar DeepSeek (más barato, cuando se acaben créditos OpenAI):
+  # llmModel: "deepseek-chat"
+  # openAISecretKey: "YOUR_DEEPSEEK_KEY"
+  # Requiere: OPENAI_BASE_URL=https://api.deepseek.com/v1 en beelzebub env

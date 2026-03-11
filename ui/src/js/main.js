@@ -1,4 +1,4 @@
-/* TARTARUS UI — Phase 1: Events Dashboard */
+/* TARTARUS UI — Phase 2: Events + Scanner Dashboard */
 'use strict';
 
 const HEALTH_MS = 10000;
@@ -11,13 +11,16 @@ let autoRefreshTimer = null;
 
 // ── DOM refs ──────────────────────────────────
 const $ = (id) => document.getElementById(id);
-const badge      = $('statusBadge');
+const badge       = $('statusBadge');
+const scanBadge   = $('scanBadge');
 const statTotal   = $('statTotal');
 const statIPs     = $('statIPs');
 const statSSH     = $('statSSH');
 const statHTTP    = $('statHTTP');
 const statTCP     = $('statTCP');
 const eventsBody  = $('eventsBody');
+const hostsBody   = $('hostsBody');
+const hostsCount  = $('hostsCount');
 const pageInfo    = $('pageInfo');
 const btnPrev     = $('btnPrev');
 const btnNext     = $('btnNext');
@@ -27,6 +30,10 @@ const btnRefresh  = $('btnRefresh');
 const autoCheck   = $('autoRefresh');
 const detailPanel = $('eventDetail');
 const detailJSON  = $('detailContent');
+const scanTarget  = $('scanTarget');
+const scanProfile = $('scanProfile');
+const btnScan     = $('btnScan');
+const scanStatus  = $('scanStatus');
 
 // ── Health Check ──────────────────────────────
 async function checkHealth() {
@@ -107,7 +114,6 @@ function renderTable(events) {
         </tr>`;
     }).join('');
 
-    // Row click → expand detail
     eventsBody.querySelectorAll('.event-row').forEach(row => {
         row.addEventListener('click', () => {
             try {
@@ -131,6 +137,106 @@ function updatePagination() {
     pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${currentTotal} events)`;
     btnPrev.disabled = currentOffset === 0;
     btnNext.disabled = currentOffset + PAGE_SIZE >= currentTotal;
+}
+
+// ── Network Scanner ──────────────────────────
+async function startScan() {
+    const target = scanTarget.value.trim();
+    if (!target) {
+        scanStatus.textContent = 'Enter a target CIDR';
+        scanStatus.className = 'scan-status scan-error';
+        return;
+    }
+
+    btnScan.disabled = true;
+    btnScan.textContent = 'Scanning...';
+    scanStatus.textContent = `Queuing scan for ${target}...`;
+    scanStatus.className = 'scan-status scan-active';
+
+    try {
+        const res = await fetch('/api/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target, profile: scanProfile.value }),
+        });
+        const data = await res.json();
+        if (data.status === 'queued') {
+            scanStatus.textContent = `Scan queued (${data.profile}) — Job: ${data.job_id}`;
+            scanBadge.textContent = 'Scanning...';
+            scanBadge.className = 'badge badge-yellow';
+            pollScanStatus();
+        } else {
+            scanStatus.textContent = `Error: ${data.error || 'Unknown'}`;
+            scanStatus.className = 'scan-status scan-error';
+        }
+    } catch (e) {
+        scanStatus.textContent = `Failed: ${e.message}`;
+        scanStatus.className = 'scan-status scan-error';
+    } finally {
+        btnScan.disabled = false;
+        btnScan.textContent = 'Scan Network';
+    }
+}
+
+async function pollScanStatus() {
+    const poll = async () => {
+        try {
+            const res = await fetch('/api/scan/status');
+            const data = await res.json();
+
+            if (data.status === 'scanning') {
+                scanBadge.textContent = `Scanning: ${data.target || '...'}`;
+                scanBadge.className = 'badge badge-yellow';
+                setTimeout(poll, 3000);
+            } else {
+                scanBadge.textContent = 'Scanner: Idle';
+                scanBadge.className = 'badge badge-muted';
+                if (data.last_result) {
+                    scanStatus.textContent = `Last scan: ${data.last_result.hosts_found} hosts found`;
+                    scanStatus.className = 'scan-status scan-done';
+                }
+                loadHosts();
+            }
+        } catch (_) {
+            scanBadge.textContent = 'Scanner: Error';
+            scanBadge.className = 'badge badge-red';
+        }
+    };
+    setTimeout(poll, 2000);
+}
+
+// ── Hosts Table ──────────────────────────────
+async function loadHosts() {
+    try {
+        const res = await fetch('/api/hosts?limit=100');
+        const data = await res.json();
+        hostsCount.textContent = `${data.total} hosts`;
+
+        if (!data.hosts.length) {
+            hostsBody.innerHTML = '<tr><td colspan="6" class="table-empty">No hosts discovered yet. Run a scan to discover network hosts.</td></tr>';
+            return;
+        }
+
+        hostsBody.innerHTML = data.hosts.map(h => {
+            const ports = h.open_ports ? JSON.parse(h.open_ports).map(p =>
+                `<span class="port-badge">${p.port}/${p.protocol}</span>`
+            ).join(' ') : '—';
+            const lastSeen = new Date(h.last_seen).toLocaleString('es-MX', {
+                month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+            });
+
+            return `<tr>
+                <td class="col-ip">${h.ip}</td>
+                <td>${h.hostname || '—'}</td>
+                <td class="col-os">${h.os_fingerprint || '—'}</td>
+                <td class="col-ports">${ports}</td>
+                <td class="col-mac">${h.mac_address || '—'}</td>
+                <td class="col-ts">${lastSeen}</td>
+            </tr>`;
+        }).join('');
+    } catch (_) {
+        hostsBody.innerHTML = '<tr><td colspan="6" class="table-empty">Failed to load hosts</td></tr>';
+    }
 }
 
 // ── Helpers ───────────────────────────────────
@@ -161,47 +267,21 @@ function stopAutoRefresh() {
 }
 
 // ── Event Listeners ───────────────────────────
-btnRefresh.addEventListener('click', () => {
-    loadEvents();
-    loadStats();
-});
-
-btnPrev.addEventListener('click', () => {
-    currentOffset = Math.max(0, currentOffset - PAGE_SIZE);
-    loadEvents();
-});
-
-btnNext.addEventListener('click', () => {
-    if (currentOffset + PAGE_SIZE < currentTotal) {
-        currentOffset += PAGE_SIZE;
-        loadEvents();
-    }
-});
-
-filterProto.addEventListener('change', () => {
-    currentOffset = 0;
-    loadEvents();
-});
-
-filterIP.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        currentOffset = 0;
-        loadEvents();
-    }
-});
-
-autoCheck.addEventListener('change', () => {
-    if (autoCheck.checked) startAutoRefresh();
-    else stopAutoRefresh();
-});
-
-$('btnCloseDetail').addEventListener('click', () => {
-    detailPanel.classList.add('hidden');
-});
+btnRefresh.addEventListener('click', () => { loadEvents(); loadStats(); });
+btnPrev.addEventListener('click', () => { currentOffset = Math.max(0, currentOffset - PAGE_SIZE); loadEvents(); });
+btnNext.addEventListener('click', () => { if (currentOffset + PAGE_SIZE < currentTotal) { currentOffset += PAGE_SIZE; loadEvents(); } });
+filterProto.addEventListener('change', () => { currentOffset = 0; loadEvents(); });
+filterIP.addEventListener('keydown', (e) => { if (e.key === 'Enter') { currentOffset = 0; loadEvents(); } });
+autoCheck.addEventListener('change', () => { if (autoCheck.checked) startAutoRefresh(); else stopAutoRefresh(); });
+$('btnCloseDetail').addEventListener('click', () => { detailPanel.classList.add('hidden'); });
+btnScan.addEventListener('click', startScan);
 
 // ── Init ──────────────────────────────────────
 checkHealth();
 loadStats();
 loadEvents();
+loadHosts();
 setInterval(checkHealth, HEALTH_MS);
 startAutoRefresh();
+// Check scan status on load
+pollScanStatus();

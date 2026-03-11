@@ -74,16 +74,25 @@ def _parse_event(body: bytes) -> dict | None:
     # Protocol
     protocol = (raw.get("Protocol") or "unknown").upper()
 
-    # Dest port from honeypot address (e.g. ":22" → 22)
+    # Dest port + protocol-aware command extraction
     dest_port = None
-    if protocol == "SSH":
-        dest_port = 22
-    elif protocol == "HTTP":
+    command = ""
+
+    if protocol == "HTTP":
         dest_port = 80
+        method = raw.get("HTTPMethod", "")
+        uri = raw.get("RequestURI", "")
+        command = f"{method} {uri}".strip() if (method or uri) else raw.get("Msg", "")
+    elif protocol == "SSH":
+        dest_port = 22
+        command = raw.get("Command") or raw.get("Msg") or ""
     elif protocol == "TCP":
         dest_port = raw.get("DestPort")
+        body_data = raw.get("Body", "") or raw.get("Command", "")
+        command = body_data[:200] if body_data else raw.get("Msg", "")
+    else:
+        command = raw.get("Command") or raw.get("Msg") or ""
 
-    # Build payload JSONB (full raw event for forensic completeness)
     sha256 = _compute_sha256(body)
 
     return {
@@ -94,7 +103,7 @@ def _parse_event(body: bytes) -> dict | None:
         "protocol": protocol,
         "session_id": raw.get("ID"),
         "honeypot_id": raw.get("HandlerName"),
-        "command": raw.get("Command") or raw.get("Msg") or "",
+        "command": command,
         "payload": json.dumps(raw),
         "sha256": sha256,
     }

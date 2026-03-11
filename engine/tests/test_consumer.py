@@ -34,12 +34,29 @@ SAMPLE_HTTP_EVENT = json.dumps({
     "DateTime": "2026-03-11T06:00:00Z",
     "RemoteAddr": "10.0.0.5:44120",
     "Protocol": "HTTP",
-    "Command": "GET /wp-admin",
+    "Command": "",
     "Status": "Stateless",
-    "Msg": "HTTP request received",
+    "Msg": "HTTP New request",
     "ID": "http-session-001",
     "SourceIp": "10.0.0.5",
     "SourcePort": "44120",
+    "HTTPMethod": "GET",
+    "RequestURI": "/wp-admin",
+    "UserAgent": "curl/8.7.1",
+    "HostHTTPRequest": "localhost:8880",
+}).encode()
+
+SAMPLE_TCP_EVENT = json.dumps({
+    "DateTime": "2026-03-11T06:10:00Z",
+    "RemoteAddr": "10.0.0.5:50000",
+    "Protocol": "TCP",
+    "Command": "",
+    "Status": "Stateless",
+    "Msg": "TCP connection",
+    "ID": "tcp-session-001",
+    "SourceIp": "10.0.0.5",
+    "SourcePort": "50000",
+    "Body": "GET / HTTP/1.1 Host: localhost:8080",
 }).encode()
 
 MALFORMED_EVENT = b"this is not json{{"
@@ -47,7 +64,6 @@ MALFORMED_EVENT = b"this is not json{{"
 NO_IP_EVENT = json.dumps({
     "DateTime": "2026-03-11T06:00:00Z",
     "Protocol": "TCP",
-    "Command": "test",
 }).encode()
 
 
@@ -97,6 +113,14 @@ def test_parse_http_event():
     assert result["protocol"] == "HTTP"
     assert result["dest_port"] == 80
     assert result["command"] == "GET /wp-admin"
+
+
+def test_parse_tcp_event():
+    """Parse a TCP honeypot event with Body data."""
+    result = _parse_event(SAMPLE_TCP_EVENT)
+    assert result is not None
+    assert result["protocol"] == "TCP"
+    assert result["command"] == "GET / HTTP/1.1 Host: localhost:8080"
 
 
 def test_parse_malformed_json():
