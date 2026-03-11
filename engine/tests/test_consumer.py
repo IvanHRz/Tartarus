@@ -44,6 +44,33 @@ SAMPLE_HTTP_EVENT = json.dumps({
     "RequestURI": "/wp-admin",
     "UserAgent": "curl/8.7.1",
     "HostHTTPRequest": "localhost:8880",
+    "ServerAddr": ":80",
+}).encode()
+
+# HTTP event with wrong Protocol but correct HTTP fields → fallback should fix
+SAMPLE_MISLABELED_HTTP = json.dumps({
+    "DateTime": "2026-03-11T06:05:00Z",
+    "RemoteAddr": "10.0.0.5:44200",
+    "Protocol": "SSH",
+    "Msg": "HTTP New request",
+    "ID": "mis-001",
+    "SourceIp": "10.0.0.5",
+    "SourcePort": "44200",
+    "HTTPMethod": "POST",
+    "RequestURI": "/api/login",
+    "ServerAddr": ":8080",
+}).encode()
+
+# HTTP event with ServerAddr for port extraction
+SAMPLE_HTTP_CUSTOM_PORT = json.dumps({
+    "DateTime": "2026-03-11T06:06:00Z",
+    "RemoteAddr": "10.0.0.5:44300",
+    "Protocol": "HTTP",
+    "SourceIp": "10.0.0.5",
+    "SourcePort": "44300",
+    "HTTPMethod": "GET",
+    "RequestURI": "/health",
+    "ServerAddr": ":8443",
 }).encode()
 
 SAMPLE_TCP_EVENT = json.dumps({
@@ -177,6 +204,31 @@ def test_no_pandas():
         content = py_file.read_text()
         for pattern in banned:
             assert pattern not in content, f"pandas found in {py_file}"
+
+
+# ── Protocol Fallback Tests ────────────────────────────
+
+def test_protocol_fallback_mislabeled_http():
+    """HTTP fields present but Protocol says SSH → override to HTTP."""
+    result = _parse_event(SAMPLE_MISLABELED_HTTP)
+    assert result is not None
+    assert result["protocol"] == "HTTP"
+    assert result["command"] == "POST /api/login"
+    assert result["dest_port"] == 8080
+
+
+def test_http_dest_port_from_server_addr():
+    """dest_port extracted from ServerAddr field."""
+    result = _parse_event(SAMPLE_HTTP_CUSTOM_PORT)
+    assert result is not None
+    assert result["dest_port"] == 8443
+    assert result["command"] == "GET /health"
+
+
+def test_http_dest_port_default():
+    """HTTP event with ServerAddr :80 → dest_port 80."""
+    result = _parse_event(SAMPLE_HTTP_EVENT)
+    assert result["dest_port"] == 80
 
 
 # ── Service Config Tests ───────────────────────────────

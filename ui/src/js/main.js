@@ -96,20 +96,22 @@ function renderTable(events) {
 
     eventsBody.innerHTML = events.map(ev => {
         const ts = new Date(ev.timestamp).toLocaleString('es-MX', {
-            year: 'numeric', month: '2-digit', day: '2-digit',
+            month: '2-digit', day: '2-digit',
             hour: '2-digit', minute: '2-digit', second: '2-digit',
             hour12: false
         });
-        const sha = ev.sha256 ? ev.sha256.substring(0, 10) + '...' : '—';
+        const sha = ev.sha256 ? ev.sha256.substring(0, 8) + '…' : '—';
+        const proto = ev.protocol.toLowerCase();
         const cmd = escapeHtml(ev.command || '—');
-        const protoBadge = `<span class="proto-badge proto-${ev.protocol.toLowerCase()}">${ev.protocol}</span>`;
+        const protoBadge = `<span class="proto-badge proto-${proto}">${ev.protocol}</span>`;
+        const cmdClass = proto === 'http' ? 'cmd-http' : proto === 'tcp' ? 'cmd-tcp' : '';
 
         return `<tr class="event-row" data-payload='${escapeAttr(JSON.stringify(ev.payload))}'>
             <td class="col-ts">${ts}</td>
             <td class="col-ip">${ev.source_ip}</td>
             <td class="col-port">${ev.dest_port || '—'}</td>
             <td>${protoBadge}</td>
-            <td class="col-cmd" title="${escapeAttr(ev.command || '')}">${cmd}</td>
+            <td class="col-cmd ${cmdClass}" title="${escapeAttr(ev.command || '')}">${cmd}</td>
             <td class="col-hash">${sha}</td>
         </tr>`;
     }).join('');

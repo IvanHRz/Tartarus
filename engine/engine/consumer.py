@@ -74,12 +74,22 @@ def _parse_event(body: bytes) -> dict | None:
     # Protocol
     protocol = (raw.get("Protocol") or "unknown").upper()
 
+    # Fallback: override protocol if HTTP-specific fields are present
+    if protocol != "HTTP" and raw.get("HTTPMethod") and raw.get("RequestURI"):
+        logger.info("Protocol overridden to HTTP (HTTPMethod+RequestURI present)")
+        protocol = "HTTP"
+
     # Dest port + protocol-aware command extraction
     dest_port = None
     command = ""
 
     if protocol == "HTTP":
-        dest_port = 80
+        # Extract real dest port from ServerAddr (e.g. ":80", ":8080")
+        server_addr = raw.get("ServerAddr", "")
+        try:
+            dest_port = int(server_addr.split(":")[-1]) if server_addr else 80
+        except (ValueError, IndexError):
+            dest_port = 80
         method = raw.get("HTTPMethod", "")
         uri = raw.get("RequestURI", "")
         command = f"{method} {uri}".strip() if (method or uri) else raw.get("Msg", "")

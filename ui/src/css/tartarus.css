@@ -179,9 +179,9 @@ body {
     z-index: 1;
 }
 #eventsTable tbody td {
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-bottom: 1px solid rgba(48, 54, 61, 0.5);
-    vertical-align: top;
+    vertical-align: middle;
 }
 .event-row {
     cursor: pointer;
@@ -240,6 +240,10 @@ body {
 .proto-ssh  { background: rgba(248, 81, 73, 0.15); color: var(--red); }
 .proto-http { background: rgba(227, 179, 65, 0.15); color: var(--orange); }
 .proto-tcp  { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+
+/* Command colors by protocol */
+.cmd-http { color: var(--orange); }
+.cmd-tcp  { color: var(--purple); }
 
 /* ── Pagination ────────────────────────────── */
 .pagination-bar {
