@@ -1,0 +1,17 @@
+core:
+  logging:
+    debug: false
+    debugReportCaller: false
+    logDisableTimestamp: false
+    logsPath: ./logs
+  tracings:
+    rabbit-mq:
+      enabled: true
+      uri: "amqp://guest:guest@broker:5672/"
+  prometheus:
+    path: "/metrics"
+    port: ":2112"
+  beelzebub-cloud:
+    enabled: false
+    uri: ""
+    auth-token: ""

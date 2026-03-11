@@ -1,0 +1,2449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador Arquitectura FONACOT — Análisis de Incidente</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #1c2431;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #7d8590;
+  --blue: #58a6ff;
+  --green: #3fb950;
+  --yellow: #d29922;
+  --red: #f85149;
+  --orange: #e3b341;
+  --purple: #bc8cff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── HEADER ── */
+#hdr {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+#hdr h1 { font-size: 16px; color: var(--blue); font-weight: 700; }
+#hdr .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+#hdrRight { display: flex; align-items: center; gap: 12px; }
+#simClock {
+  font-family: monospace;
+  font-size: 15px;
+  color: var(--blue);
+  background: var(--bg3);
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  min-width: 90px;
+  text-align: center;
+}
+.speedWrap { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.speedWrap select {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { filter: brightness(1.15); }
+.btn-green  { background: #238636; color: #fff; }
+.btn-red    { background: #da3633; color: #fff; }
+.btn-blue   { background: #1f6feb; color: #fff; }
+.btn-orange { background: #9e6a03; color: #fff; }
+.btn-gray   { background: #30363d; color: var(--text); }
+.btn-sm     { padding: 4px 10px; font-size: 11px; }
+
+/* ── CONTROL PANEL ── */
+#ctrl {
+  background: var(--bg2);
+  border-bottom: 2px solid var(--border);
+  padding: 5px 12px;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 8px;
+  align-items: flex-start;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+/* Foco visual en cards interactivas (doble clic) */
+.cg-interactive {
+  cursor: pointer;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  background: var(--bg) !important;
+  transition: border-color 0.25s, box-shadow 0.25s;
+  position: relative;
+}
+.cg-interactive:hover {
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 0 2px rgba(88,166,255,0.15);
+}
+/* Indicador animado ↗ en título de tarjetas interactivas */
+@keyframes nudge {
+  0%, 80%, 100% { transform: translate(0,0); }
+  30% { transform: translate(2px,-2px); }
+}
+.cg-interactive .cg-title .hint-icon {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 9px;
+  opacity: 0.55;
+  animation: nudge 3s ease-in-out infinite;
+}
+/* Badge escenario activo */
+#presetBadge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 3px;
+  letter-spacing: 0.03em;
+}
+.pb-incident    { background:rgba(248,81,73,.15);  color:var(--red);    border:1px solid rgba(248,81,73,.35);  }
+.pb-recommended { background:rgba(63,185,80,.15);  color:var(--green);  border:1px solid rgba(63,185,80,.35);  }
+.pb-neutral     { background:rgba(125,133,144,.15);color:var(--muted);  border:1px solid rgba(125,133,144,.3); }
+/* Pulse en ▶ INICIAR */
+@keyframes playPulse {
+  0%,100% { box-shadow: 0 0 0 0   rgba(35,134,54,0.5); }
+  55%     { box-shadow: 0 0 0 7px rgba(35,134,54,0);   }
+}
+.btn-pulse { animation: playPulse 2s infinite; }
+/* Chip de estado de sim */
+#simStateChip {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 9px; border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg3); color: var(--muted);
+  white-space: nowrap;
+}
+#simStateChip.running { color: var(--green); border-color: rgba(63,185,80,.4); background: rgba(63,185,80,.1); }
+#simStateChip.stopped { color: var(--muted); }
+/* Quick status: compact 1 línea */
+.qs-line {
+  font-size: 10px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.5; margin-top: 3px;
+}
+.cg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 135px;
+}
+.cg-title {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.cr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.cl { font-size: 10px; color: var(--muted); }
+.cv { font-size: 10px; font-family: monospace; color: var(--text); min-width: 32px; text-align: right; }
+
+/* Toggle */
+.tog { position: relative; width: 32px; height: 16px; flex-shrink: 0; }
+.tog input { opacity: 0; width: 0; height: 0; }
+.ts {
+  position: absolute; inset: 0;
+  background: #21262d;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.ts:before {
+  content: '';
+  position: absolute;
+  width: 12px; height: 12px;
+  left: 1px; top: 1px;
+  background: var(--muted);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+input:checked + .ts { background: #1a7f37; border-color: #3fb950; }
+input:checked + .ts:before { transform: translateX(16px); background: #fff; }
+
+/* Range slider */
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  background: var(--blue);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--bg);
+}
+
+/* Select */
+select {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* ── MAIN ROW: arch (left) + dashboard (right) ── */
+#mainRow {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── ARCH CANVAS ── */
+#archWrap {
+  flex: 0 0 54%;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg2);
+  border-right: 2px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+#archCanvas { display: block; }
+/* "No iniciado" overlay */
+#archOverlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(13,17,23,0.55);
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.3s;
+}
+#archOverlay span {
+  color: #58a6ff; font-size: 13px; font-weight: 600;
+  background: rgba(31,111,235,0.12);
+  border: 1px solid rgba(88,166,255,0.3);
+  border-radius: 8px; padding: 8px 20px;
+  letter-spacing: 0.03em;
+}
+
+/* ── DASHBOARD (right panel) ── */
+#dash {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* 2×2 chart grid — filas fijas para garantizar render de canvas */
+#chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 155px 155px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Bottom: status table + event log side by side */
+#bottomRow {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 200px;
+}
+
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.card-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+/* Chart canvas: fills card vertically, no wrapper needed */
+canvas.chartC {
+  flex: 1;
+  width: 100%;
+  display: block;
+  min-height: 0;
+  border-radius: 4px;
+}
+
+/* Status section */
+#statusCard { /* inherits .card */ }
+.stbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+.stbl th {
+  color: var(--muted);
+  font-weight: 600;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.stbl td { padding: 4px 6px; border-bottom: 1px solid #21262d; vertical-align: middle; }
+.stbl tr:last-child td { border-bottom: none; }
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bg { background: rgba(63,185,80,.15); color: var(--green); }
+.by { background: rgba(210,153,34,.15); color: var(--orange); }
+.br { background: rgba(248,81,73,.15); color: var(--red); }
+.bx { background: rgba(125,133,144,.15); color: var(--muted); }
+.fillbar { width: 70px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; }
+.fillbar-inner { height: 100%; border-radius: 3px; transition: width 0.3s, background 0.3s; }
+
+/* Event log */
+#logCard { /* inherits .card, placed in #bottomRow */ }
+#evLog {
+  flex: 1;
+  overflow-y: auto;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.ei { color: var(--blue); }
+.ew { color: var(--orange); }
+.ec { color: var(--red); }
+
+/* Gauge */
+#dbGauge { display: flex; align-items: center; justify-content: center; flex-direction: column; flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="hdr">
+  <div>
+    <h1>Simulador FONACOT — Saturación de Conexiones Oracle</h1>
+    <div class="sub">App Android → Radware → Firewall → Docker → F5 → WebLogic (9 DS) → ScanFonacot → Oracle DB</div>
+  </div>
+  <div id="hdrRight">
+    <div class="speedWrap">
+      Vel:
+      <select id="selSpeed" onchange="setSpeed(this.value)">
+        <option value="300">0.5×</option>
+        <option value="150" selected>1×</option>
+        <option value="75">2×</option>
+        <option value="40">4×</option>
+      </select>
+    </div>
+    <div id="simStateChip" class="stopped">⏹ DETENIDO</div>
+    <div id="simClock">T: 0s</div>
+    <button class="btn btn-green btn-pulse" id="btnPlay" onclick="toggleSim()">▶ INICIAR</button>
+    <button class="btn btn-gray btn-sm" onclick="resetSim()">⟲ RESET</button>
+  </div>
+</div>
+
+<!-- CONTROL PANEL -->
+<div id="ctrl">
+
+  <!-- Carga -->
+  <div class="cg">
+    <div class="cg-title">Carga de Usuarios</div>
+    <div class="cr">
+      <span class="cl">Usuarios activos</span>
+      <span class="cv" id="vUsers">200</span>
+    </div>
+    <input type="range" min="10" max="500" value="200" id="slUsers" oninput="onCtrl('users',this.value)">
+    <button class="btn btn-orange btn-sm" onclick="doBurst()" style="margin-top:2px;">⚡ Thundering Herd</button>
+  </div>
+
+  <!-- App Android -->
+  <div class="cg cg-interactive" id="cgApp" ondblclick="openAppModal()" title="Doble clic — configurar defectos de la App" style="min-width:185px;color:#f97316;">
+    <div class="cg-title" style="color:#f97316;">📱 App Android<span class="hint-icon">↗</span></div>
+    <div class="cr" style="margin-top:3px;">
+      <span class="cl" style="font-size:10px;">Timeout</span>
+      <select id="selTO" onchange="onCtrl('timeout',this.value)" style="font-size:10px;">
+        <option value="180">180s — ACTUAL</option>
+        <option value="30">30s — RECOM.</option>
+      </select>
+    </div>
+    <div id="appQuickStatus" class="qs-line">cargando…</div>
+    <button class="btn btn-sm" style="background:#21262d;color:#f97316;font-size:10px;margin-top:4px;border:1px solid #f97316;" onclick="event.stopPropagation();openAppModal()">⚙ Defectos</button>
+  </div>
+
+  <!-- F5 -->
+  <div class="cg">
+    <div class="cg-title">F5 Load Balancer</div>
+    <div class="cr">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <label class="tog"><input type="checkbox" id="togKA" onchange="onCtrl('ka',this.checked)"><span class="ts"></span></label>
+        <span class="cl">Keep-Alive TCP upstream</span>
+      </label>
+    </div>
+    <div class="cr">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <label class="tog"><input type="checkbox" id="togRL" onchange="onCtrl('rl',this.checked)"><span class="ts"></span></label>
+        <span class="cl">Rate Limiting (500 req/s)</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- WebLogic -->
+  <div class="cg cg-interactive" id="cgWL" ondblclick="openWLModal()" title="Doble clic — configurar 9 DataSources" style="min-width:180px;color:#58a6ff;">
+    <div class="cg-title" style="color:#58a6ff;">🔌 WebLogic JDBC<span class="hint-icon">↗</span></div>
+    <div id="wlQuickStatus" class="qs-line">cargando…</div>
+    <button class="btn btn-sm" style="background:#21262d;color:#58a6ff;font-size:10px;margin-top:4px;border:1px solid #58a6ff;" onclick="event.stopPropagation();openWLModal()">⚙ DataSources</button>
+  </div>
+
+  <!-- ScanFonacot -->
+  <div class="cg">
+    <div class="cg-title">ScanFonacot</div>
+    <div class="cr">
+      <span class="cl">Fan-out queries/req</span>
+      <span class="cv" id="vFanout">7</span>
+    </div>
+    <input type="range" min="1" max="15" value="7" id="slFanout" oninput="onCtrl('fanout',this.value)">
+  </div>
+
+  <!-- Resiliencia -->
+  <div class="cg">
+    <div class="cg-title">Resiliencia</div>
+    <div class="cr">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <label class="tog"><input type="checkbox" id="togCB" onchange="onCtrl('cb',this.checked)"><span class="ts"></span></label>
+        <span class="cl">Circuit Breaker</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Oracle DB -->
+  <div class="cg cg-interactive" id="cgOracle" ondblclick="openOracleModal()" title="Doble clic — configurar parámetros Oracle DB" style="min-width:175px;color:#e3b341;">
+    <div class="cg-title" style="color:#e3b341;">🗄 Oracle DB<span class="hint-icon">↗</span></div>
+    <div id="oraQuickStatus" class="qs-line">cargando…</div>
+    <button class="btn btn-sm" style="background:#21262d;color:#e3b341;font-size:10px;margin-top:4px;border:1px solid #e3b341;" onclick="event.stopPropagation();openOracleModal()">⚙ Oracle</button>
+  </div>
+
+  <!-- Presets -->
+  <div class="cg" style="min-width:170px;">
+    <div class="cg-title">Escenarios</div>
+    <div id="presetBadge" class="pb-incident">⚠ Incidente</div>
+    <button class="btn btn-red btn-sm" id="pbtnIncident" onclick="applyPreset('incident')">⚠ Config. Incidente</button>
+    <button class="btn btn-green btn-sm" id="pbtnRecommended" onclick="applyPreset('recommended')">✓ Config. Recomendada</button>
+    <button class="btn btn-gray btn-sm" id="pbtnNeutral" onclick="applyPreset('neutral')">↺ Valores Neutros</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     ORACLE DB CONFIG MODAL
+     ═══════════════════════════════════════════════════════ -->
+<div id="oracleModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:#161b22;border:2px solid #e3b341;border-radius:12px;width:820px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.7);">
+
+    <!-- Modal header -->
+    <div style="background:#1c2431;padding:14px 20px;border-radius:10px 10px 0 0;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#e3b341;">⚙ Configuración Oracle DB — Parámetros de Sesión</div>
+        <div style="font-size:11px;color:#7d8590;margin-top:2px;">Los cambios se aplican en tiempo real a la simulación. Basado en perfiles Oracle, sqlnet.ora y DRCP.</div>
+      </div>
+      <button onclick="closeOracleModal()" style="background:none;border:1px solid #30363d;color:#7d8590;font-size:12px;cursor:pointer;padding:4px 10px;border-radius:5px;" title="Cerrar (ESC)">✕ ESC</button>
+    </div>
+
+    <!-- Modal body: params table -->
+    <div style="padding:16px 20px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="border-bottom:2px solid #30363d;">
+            <th style="text-align:left;padding:6px 8px;color:#7d8590;font-weight:600;font-size:11px;white-space:nowrap;">Parámetro Oracle</th>
+            <th style="text-align:center;padding:6px 8px;color:#7d8590;font-weight:600;font-size:11px;min-width:200px;">Valor Actual</th>
+            <th style="text-align:center;padding:6px 8px;color:#3fb950;font-weight:600;font-size:11px;white-space:nowrap;">✓ Recomendado</th>
+            <th style="text-align:left;padding:6px 8px;color:#7d8590;font-weight:600;font-size:11px;">Descripción</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <!-- IDLE_TIME -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:10px 8px;">
+              <div style="color:#e6edf3;font-weight:600;font-family:monospace;">IDLE_TIME</div>
+              <div style="color:#7d8590;font-size:10px;">Profile parameter</div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;">
+              <div style="display:flex;align-items:center;gap:8px;justify-content:center;">
+                <input type="range" min="0" max="60" value="0" id="oraIdleTime" style="width:110px;" oninput="oraCtrl('idleTime',this.value)">
+                <span id="vOraIdleTime" style="font-family:monospace;color:#e6edf3;min-width:55px;">0 (OFF)</span>
+              </div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">5 min</td>
+            <td style="padding:10px 8px;color:#7d8590;font-size:11px;">Mata sesiones inactivas automáticamente. 0=UNLIMITED (sesiones zombie no se eliminan).</td>
+          </tr>
+
+          <!-- SESSIONS_PER_USER -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:10px 8px;">
+              <div style="color:#e6edf3;font-weight:600;font-family:monospace;">SESSIONS_PER_USER</div>
+              <div style="color:#7d8590;font-size:10px;">Profile parameter</div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;">
+              <div style="display:flex;align-items:center;gap:8px;justify-content:center;">
+                <input type="range" min="0" max="500" value="0" id="oraSessPerUser" style="width:110px;" oninput="oraCtrl('sessPerUser',this.value)">
+                <span id="vOraSessPerUser" style="font-family:monospace;color:#e6edf3;min-width:75px;">0 (∞)</span>
+              </div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">200 (app)<br>80 (mobile)</td>
+            <td style="padding:10px 8px;color:#7d8590;font-size:11px;">Techo absoluto de sesiones por usuario en Oracle, independiente de WebLogic MaxCapacity.</td>
+          </tr>
+
+          <!-- SQLNET.EXPIRE_TIME -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:10px 8px;">
+              <div style="color:#e6edf3;font-weight:600;font-family:monospace;">SQLNET.EXPIRE_TIME</div>
+              <div style="color:#7d8590;font-size:10px;">sqlnet.ora</div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <label class="tog"><input type="checkbox" id="oraSqlnetToggle" onchange="oraCtrl('sqlnetExpire',this.checked)"><span class="ts"></span></label>
+                  <span id="vOraSqlnet" style="font-family:monospace;color:#e6edf3;font-size:11px;">OFF</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:10px;color:#7d8590;">Intervalo:</span>
+                  <input type="range" min="1" max="30" value="10" id="oraSqlnetMin" style="width:80px;" oninput="oraCtrl('sqlnetMin',this.value)">
+                  <span id="vOraSqlnetMin" style="font-family:monospace;color:#e6edf3;min-width:40px;">10 min</span>
+                </div>
+              </div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">ON<br>10 min</td>
+            <td style="padding:10px 8px;color:#7d8590;font-size:11px;">Oracle envía probe TCP periódico. Si el cliente no responde, mata la sesión. Detecta conexiones TCP "half-open" (zombie).</td>
+          </tr>
+
+          <!-- DRCP -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:10px 8px;">
+              <div style="color:#e6edf3;font-weight:600;font-family:monospace;">DRCP</div>
+              <div style="color:#7d8590;font-size:10px;">Database Resident Connection Pool</div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <label class="tog"><input type="checkbox" id="oraDrcpToggle" onchange="oraCtrl('drcp',this.checked)"><span class="ts"></span></label>
+                  <span id="vOraDrcp" style="font-family:monospace;color:#e6edf3;font-size:11px;">OFF (1:1 procesos)</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:10px;color:#7d8590;">Pool size:</span>
+                  <input type="range" min="10" max="500" value="200" id="oraDrcpSize" style="width:80px;" oninput="oraCtrl('drcpSize',this.value)">
+                  <span id="vOraDrcpSize" style="font-family:monospace;color:#e6edf3;min-width:40px;">200</span>
+                </div>
+              </div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">ON<br>200 workers</td>
+            <td style="padding:10px 8px;color:#7d8590;font-size:11px;">Pool de procesos servidor compartidos. Evita el modelo 1:1 conexión→proceso. 4,200 conexiones JDBC compiten por N workers en lugar de crear 4,200 procesos OS.</td>
+          </tr>
+
+          <!-- Resource Manager -->
+          <tr>
+            <td style="padding:10px 8px;">
+              <div style="color:#e6edf3;font-weight:600;font-family:monospace;">Resource Manager</div>
+              <div style="color:#7d8590;font-size:10px;">DBMS_RESOURCE_MANAGER</div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <label class="tog"><input type="checkbox" id="oraResMgrToggle" onchange="oraCtrl('resMgr',this.checked)"><span class="ts"></span></label>
+                  <span id="vOraResMgr" style="font-family:monospace;color:#e6edf3;font-size:11px;">OFF (sin límite)</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:10px;color:#7d8590;">Hard limit:</span>
+                  <input type="range" min="10" max="500" value="200" id="oraResMgrLimit" style="width:80px;" oninput="oraCtrl('resMgrLimit',this.value)">
+                  <span id="vOraResMgrLimit" style="font-family:monospace;color:#e6edf3;min-width:40px;">200</span>
+                </div>
+              </div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">ON<br>200 sesiones</td>
+            <td style="padding:10px 8px;color:#7d8590;font-size:11px;">Límite duro de sesiones activas por grupo de consumidores. Oracle rechaza nuevas sesiones si supera el límite, independientemente de lo que haga WebLogic.</td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Modal footer -->
+    <div style="padding:12px 20px;border-top:1px solid #30363d;display:flex;gap:10px;justify-content:flex-end;background:#1c2431;border-radius:0 0 10px 10px;">
+      <div style="flex:1;font-size:10px;color:#7d8590;align-self:center;">
+        💡 Tip: Los parámetros Oracle actúan como última línea de defensa, independientemente de la configuración de WebLogic o la app.
+      </div>
+      <button class="btn btn-red"   onclick="applyOracleIncident()"    style="font-size:12px;">⚠ Restablecer Incidente</button>
+      <button class="btn btn-green" onclick="applyOracleRecommended()" style="font-size:12px;">✓ Aplicar Recomendaciones</button>
+      <button class="btn btn-gray"  onclick="closeOracleModal()"       style="font-size:12px;">Cerrar</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     WEBLOGIC DATASOURCES CONFIG MODAL
+     ═══════════════════════════════════════════════════════ -->
+<div id="wlModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:#161b22;border:2px solid #58a6ff;border-radius:12px;width:900px;max-width:97vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.7);">
+
+    <!-- Header -->
+    <div style="background:#1c2431;padding:14px 20px;border-radius:10px 10px 0 0;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#58a6ff;">🔌 WebLogic JDBC — Configuración de DataSources (9 DS reales)</div>
+        <div style="font-size:11px;color:#7d8590;margin-top:2px;">Datos del cliente FONACOT. 7 de 9 DS tienen InactiveTO=0 (zombies). Los 2 críticos tienen InactiveTO=120s.</div>
+      </div>
+      <button onclick="closeWLModal()" style="background:none;border:1px solid #30363d;color:#7d8590;font-size:12px;cursor:pointer;padding:4px 10px;border-radius:5px;" title="Cerrar (ESC)">✕ ESC</button>
+    </div>
+
+    <!-- ConnReserveTO global -->
+    <div style="padding:12px 20px;background:#0d1117;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="font-size:12px;color:#f85149;font-weight:600;">⚠ CRÍTICA #3 — ConnectionReserveTimeoutSeconds (aplica a TODOS los DataSources):</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="range" min="1" max="60" value="10" id="wlConnRTO" style="width:100px;" oninput="wlCtrl('connRTO',this.value)">
+        <span id="vWlConnRTO" style="font-family:monospace;color:#f85149;font-weight:700;min-width:40px;">10s</span>
+        <span style="font-size:10px;color:#7d8590;">(recomendado: 30–60s para evitar cascada de reintentos)</span>
+      </div>
+    </div>
+
+    <!-- DS table -->
+    <div style="padding:12px 20px;">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead>
+          <tr style="border-bottom:2px solid #30363d;">
+            <th style="text-align:left;padding:6px 8px;color:#7d8590;font-size:10px;">DataSource</th>
+            <th style="text-align:center;padding:6px 8px;color:#7d8590;font-size:10px;">MaxCapacity</th>
+            <th style="text-align:center;padding:6px 8px;color:#7d8590;font-size:10px;">InactiveTO (s)</th>
+            <th style="text-align:center;padding:6px 8px;color:#3fb950;font-size:10px;">✓ Recomendado ITO</th>
+            <th style="text-align:left;padding:6px 8px;color:#7d8590;font-size:10px;">Tipo / Riesgo</th>
+          </tr>
+        </thead>
+        <tbody id="wlDsTableBody"></tbody>
+      </table>
+      <div style="font-size:10px;color:#7d8590;margin-top:8px;padding:8px;background:#0d1117;border-radius:4px;border-left:3px solid #58a6ff;">
+        💡 <strong style="color:#e6edf3;">Total MaxCapacity:</strong> <span id="wlTotalCapDisplay" style="font-family:monospace;color:#58a6ff;">4,900</span> conexiones posibles.
+        <span style="margin-left:8px;"><strong style="color:#f85149;">Capacidad zombie (ITO=0):</strong> <span id="wlZombieCapDisplay" style="font-family:monospace;color:#f85149;">400</span></span>
+        <span style="margin-left:8px;"><strong style="color:#d29922;">Fórmula recomendada MaxCap:</strong> floor(máx_DB_conn / nodos_WL × 0.8) ≈ <span style="color:#3fb950;">~120–200 por DS crítico</span></span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:12px 20px;border-top:1px solid #30363d;display:flex;gap:10px;justify-content:flex-end;background:#1c2431;border-radius:0 0 10px 10px;flex-wrap:wrap;">
+      <div style="flex:1;font-size:10px;color:#7d8590;align-self:center;">
+        💡 CRÍTICA #2: 7/9 DS con InactiveTO=0 garantizan acumulación de conexiones zombie. Establecer ≥300s en todos.
+      </div>
+      <button class="btn btn-red"   onclick="applyWLIncident()"     style="font-size:12px;">⚠ Restablecer Incidente</button>
+      <button class="btn btn-green" onclick="applyWLRecommended()"  style="font-size:12px;">✓ Aplicar Recomendaciones</button>
+      <button class="btn btn-gray"  onclick="closeWLModal()"        style="font-size:12px;">Cerrar</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     APP ANDROID CONFIG MODAL
+     ═══════════════════════════════════════════════════════ -->
+<div id="appModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;">
+  <div style="background:#161b22;border:2px solid #f97316;border-radius:12px;width:860px;max-width:97vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.7);">
+
+    <!-- Header -->
+    <div style="background:#1c2431;padding:14px 20px;border-radius:10px 10px 0 0;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#f97316;">📱 App Android — Defectos del Código (OkHttp / Kotlin)</div>
+        <div style="font-size:11px;color:#7d8590;margin-top:2px;">7 defectos identificados en el reporte. Cada uno amplifica la carga en DB de forma distinta.</div>
+      </div>
+      <button onclick="closeAppModal()" style="background:none;border:1px solid #30363d;color:#7d8590;font-size:12px;cursor:pointer;padding:4px 10px;border-radius:5px;" title="Cerrar (ESC)">✕ ESC</button>
+    </div>
+
+    <!-- Params table -->
+    <div style="padding:16px 20px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="border-bottom:2px solid #30363d;">
+            <th style="text-align:left;padding:6px 8px;color:#7d8590;font-size:11px;">Defecto / Sección</th>
+            <th style="text-align:center;padding:6px 8px;color:#7d8590;font-size:11px;min-width:110px;">Estado actual</th>
+            <th style="text-align:center;padding:6px 8px;color:#3fb950;font-size:11px;white-space:nowrap;">✓ Corrección</th>
+            <th style="text-align:left;padding:6px 8px;color:#7d8590;font-size:11px;">Descripción del impacto</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <!-- Timeout -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:9px 8px;">
+              <div style="color:#e6edf3;font-weight:600;">Timeout OkHttpClient</div>
+              <div style="color:#7d8590;font-size:10px;">§2.2 — CRÍTICO</div>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">
+              <select id="appSelTO" onchange="onCtrl('timeout',this.value)" style="font-size:11px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:2px 4px;">
+                <option value="180">180s — ACTUAL</option>
+                <option value="30">30s — RECOM.</option>
+              </select>
+            </td>
+            <td style="padding:9px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">30s</td>
+            <td style="padding:9px 8px;color:#7d8590;font-size:11px;">connect=180s/read=180s/write=180s. Cada conexión lenta retiene el lease JDBC durante 3 minutos completos — el principal vector de amplificación.</td>
+          </tr>
+
+          <!-- GPS runBlocking -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:9px 8px;">
+              <div style="color:#e6edf3;font-weight:600;">runBlocking GPS</div>
+              <div style="color:#7d8590;font-size:10px;">§2.1 — CRÍTICO (HeaderInterceptor)</div>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">
+              <label class="tog"><input type="checkbox" id="appTogGPS" checked onchange="onCtrl('gps',this.checked)"><span class="ts"></span></label>
+            </td>
+            <td style="padding:9px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">OFF</td>
+            <td style="padding:9px 8px;color:#7d8590;font-size:11px;">runBlocking{} dentro del dispatcher OkHttp. Bloquea threads hasta 20–30s esperando GPS. En edificios, cada request puede quedar congelado.</td>
+          </tr>
+
+          <!-- Triple GPS -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:9px 8px;">
+              <div style="color:#e6edf3;font-weight:600;">Triple startLocationUpdates()</div>
+              <div style="color:#7d8590;font-size:10px;">§2.3 — ALTA</div>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">
+              <label class="tog"><input type="checkbox" id="appTogTriGPS" checked onchange="onCtrl('trigps',this.checked)"><span class="ts"></span></label>
+            </td>
+            <td style="padding:9px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">OFF (1 registro)</td>
+            <td style="padding:9px 8px;color:#7d8590;font-size:11px;">Registrado en Application.onCreate() + MainActivity.onStart() + MainActivity.onResume(). Triplica callbacks GPS, aumenta freezes de red.</td>
+          </tr>
+
+          <!-- Endpoints duplicados -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:9px 8px;">
+              <div style="color:#e6edf3;font-weight:600;">Endpoints duplicados</div>
+              <div style="color:#7d8590;font-size:10px;">§2.4 — ALTA (ProxyApiService)</div>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">
+              <label class="tog"><input type="checkbox" id="appTogDupEP" checked onchange="onCtrl('dupep',this.checked)"><span class="ts"></span></label>
+            </td>
+            <td style="padding:9px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">OFF (unificado)</td>
+            <td style="padding:9px 8px;color:#7d8590;font-size:11px;">verificarExistenciaCreditoActivo y obtenerUltimaVersionApp declarados 2× con distintas signatures. ViewModels pueden invocar ambas versiones → +25% req/s.</td>
+          </tr>
+
+          <!-- Carga paralela login -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:9px 8px;">
+              <div style="color:#e6edf3;font-weight:600;">Carga paralela al login</div>
+              <div style="color:#7d8590;font-size:10px;">§10.3 — MEDIA</div>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">
+              <label class="tog"><input type="checkbox" id="appTogParLogin" checked onchange="onCtrl('parlogin',this.checked)"><span class="ts"></span></label>
+            </td>
+            <td style="padding:9px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">OFF (diferida)</td>
+            <td style="padding:9px 8px;color:#7d8590;font-size:11px;">Al login: 6–10 requests en paralelo (perfil + créditos + notificaciones + versión + …). Spike ×2.2 en los primeros 8s de sesión.</td>
+          </tr>
+
+          <!-- 401 no-cancel -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:9px 8px;">
+              <div style="color:#e6edf3;font-weight:600;">401 sin cancelar en vuelo</div>
+              <div style="color:#7d8590;font-size:10px;">§UnauthorizedInterceptor — ALTA</div>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">
+              <label class="tog"><input type="checkbox" id="appTogNoCancel" checked onchange="onCtrl('nocancel401',this.checked)"><span class="ts"></span></label>
+            </td>
+            <td style="padding:9px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">OFF (cancel all)</td>
+            <td style="padding:9px 8px;color:#7d8590;font-size:11px;">Cuando un 401 limpia tokens, las llamadas en vuelo NO se cancelan. Siguen consumiendo su lease JDBC hasta que agotan su timeout completo (180s).</td>
+          </tr>
+
+          <!-- Session polling -->
+          <tr style="border-bottom:1px solid #21262d;">
+            <td style="padding:9px 8px;">
+              <div style="color:#e6edf3;font-weight:600;">Session polling (onResume)</div>
+              <div style="color:#7d8590;font-size:10px;">§H7 — MEDIA (sessionViewModel)</div>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">
+              <label class="tog"><input type="checkbox" id="appTogPoll" checked onchange="onCtrl('poll',this.checked)"><span class="ts"></span></label>
+            </td>
+            <td style="padding:9px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">OFF (lazy)</td>
+            <td style="padding:9px 8px;color:#7d8590;font-size:11px;">sessionViewModel.checkSession() en cada onResume de Activity. Genera tasa de fondo constante independiente de acciones del usuario (+0.3 req/s por usuario).</td>
+          </tr>
+
+          <!-- ViewModel retries -->
+          <tr>
+            <td style="padding:9px 8px;">
+              <div style="color:#e6edf3;font-weight:600;">Retries en ViewModels</div>
+              <div style="color:#7d8590;font-size:10px;">§H6 — MEDIA (comportamiento inferido)</div>
+            </td>
+            <td style="padding:9px 8px;text-align:center;">
+              <label class="tog"><input type="checkbox" id="appTogRetry" checked onchange="onCtrl('vmretry',this.checked)"><span class="ts"></span></label>
+            </td>
+            <td style="padding:9px 8px;text-align:center;color:#3fb950;font-family:monospace;font-weight:700;">OFF (no retry)</td>
+            <td style="padding:9px 8px;color:#7d8590;font-size:11px;">Al recibir error por ConnectionReserveTimeout=10s, ViewModels pueden reintentar. 40% de requests rechazados vuelven → amplificación en cascada.</td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:12px 20px;border-top:1px solid #30363d;display:flex;gap:10px;justify-content:flex-end;background:#1c2431;border-radius:0 0 10px 10px;flex-wrap:wrap;">
+      <div style="flex:1;font-size:10px;color:#7d8590;align-self:center;">
+        💡 El timeout de 180s es el principal amplificador. Cada request lento retiene el lease JDBC durante 3 minutos.
+      </div>
+      <button class="btn btn-red" onclick="applyAppIncident()" style="font-size:12px;">⚠ Activar todos los defectos</button>
+      <button class="btn btn-green" onclick="applyAppRecommended()" style="font-size:12px;">✓ Aplicar correcciones app</button>
+      <button class="btn btn-gray" onclick="closeAppModal()" style="font-size:12px;">Cerrar</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MAIN ROW: architecture (left) + dashboard/charts (right) -->
+<div id="mainRow">
+
+<!-- ARCHITECTURE CANVAS -->
+<div id="archWrap">
+  <canvas id="archCanvas"></canvas>
+  <div id="archOverlay"><span>▶ Presiona INICIAR para comenzar la simulación</span></div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash">
+
+  <!-- ── CHARTS 2×2 ── -->
+  <div id="chartsGrid">
+
+    <!-- Chart 1: DB Connections -->
+    <div class="card">
+      <div class="card-title" id="titleDbConn">📈 Conexiones Oracle DB — 30 conn</div>
+      <canvas class="chartC" id="cDbConn"></canvas>
+    </div>
+
+    <!-- Chart 2: DB Latency -->
+    <div class="card">
+      <div class="card-title" id="titleLatency">⏱ Latencia Query DB — 200ms</div>
+      <canvas class="chartC" id="cLatency"></canvas>
+    </div>
+
+    <!-- Chart 3: JDBC Pool Fill -->
+    <div class="card">
+      <div class="card-title">🗂 Conexiones JDBC Activas + Zombie — WL-1 / WL-2 / WL-3</div>
+      <canvas class="chartC" id="cPool"></canvas>
+    </div>
+
+    <!-- Chart 4: Rejected requests -->
+    <div class="card">
+      <div class="card-title" id="titleRejected">🚫 Requests Rechazados / s — 0/s</div>
+      <canvas class="chartC" id="cRejected"></canvas>
+    </div>
+
+  </div><!-- /chartsGrid -->
+
+  <!-- ── BOTTOM ROW: status + log ── -->
+  <div id="bottomRow">
+
+    <!-- Status Table -->
+    <div class="card" id="statusCard">
+      <div class="card-title">Estado por Capa de Arquitectura</div>
+      <div style="overflow:auto;flex:1;">
+        <table class="stbl">
+          <thead>
+            <tr>
+              <th>Capa</th>
+              <th>Métrica Principal</th>
+              <th>Valor</th>
+              <th>Estado</th>
+              <th style="min-width:80px;">Carga</th>
+            </tr>
+          </thead>
+          <tbody id="stblBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="card" id="logCard">
+      <div class="card-title">Log de Eventos</div>
+      <div id="evLog">Esperando inicio de simulación…<br></div>
+    </div>
+
+  </div><!-- /bottomRow -->
+
+</div><!-- /dash -->
+
+</div><!-- /mainRow -->
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONFIGURATION  (user-controlled)
+// ═══════════════════════════════════════════════════════
+let C = {
+  users:         200,
+  timeout:       180,   // s client timeout
+  gps:           true,  // runBlocking GPS
+  dupEndpoints:  true,  // endpoints duplicados en ProxyApiService
+  tripleGPS:     true,  // triple startLocationUpdates()
+  parallelLogin: true,  // carga paralela al login (vs. diferida)
+  noCancel401:   true,  // 401 no cancela llamadas en vuelo (§UnauthorizedInterceptor)
+  sessionPoll:   true,  // sessionViewModel.checkSession() en cada onResume (§H7)
+  vmRetries:     true,  // retries implícitos en ViewModels al recibir error (§H6)
+  ka:            false, // keep-alive F5→WL
+  rl:            false, // rate limiting
+  fanout:        7,     // ScanFonacot queries per request
+  cb:            false, // circuit breaker
+  // WebLogic DataSources — 9 DS reales con configuración individual
+  wl: {
+    connReserveTO: 10,  // ConnReserveTimeoutSeconds — aplica a TODOS los DS
+    ds: [
+      { name:'ServiciosWebCreditoDS',        maxCap:3000, iTO:120, appFlow:false }, // H1 principal
+      { name:'ServiciosWebCreditoDSAppMovil', maxCap:1400, iTO:120, appFlow:true  }, // H1 app
+      { name:'ServiciosWebDS',               maxCap:200,  iTO:0,   appFlow:false }, // zombie
+      { name:'ServiciosWebCobranzaDS',        maxCap:50,   iTO:0,   appFlow:false }, // zombie
+      { name:'WSOperacionesTopazDS',          maxCap:50,   iTO:0,   appFlow:false }, // zombie
+      { name:'afilia CTDS',                   maxCap:50,   iTO:0,   appFlow:false }, // zombie
+      { name:'bursatilizacionWS',             maxCap:50,   iTO:0,   appFlow:false }, // zombie
+      { name:'WSCobranza',                    maxCap:50,   iTO:0,   appFlow:false }, // zombie
+      { name:'WSCreditoSeguroDS',             maxCap:50,   iTO:0,   appFlow:false }, // zombie
+    ],
+  },
+  // Oracle DB parameters
+  ora: {
+    idleTime:       0,     // min; 0 = UNLIMITED (profile IDLE_TIME)
+    sessPerUser:    0,     // 0 = UNLIMITED (profile SESSIONS_PER_USER)
+    sqlnetExpire:   false, // SQLNET.EXPIRE_TIME enabled
+    sqlnetMin:      10,    // minutes for SQLNET.EXPIRE_TIME
+    drcp:           false, // Database Resident Connection Pooling
+    drcpSize:       200,   // DRCP pool size
+    resMgr:         false, // Resource Manager hard limit
+    resMgrLimit:    200,   // max active sessions via Resource Manager
+  },
+};
+
+// Helpers to derive effective WL parameters from DS config
+function wlAppMovilDS()  { return C.wl.ds.find(d => d.appFlow) || C.wl.ds[1]; }
+function wlTotalCap()    { return C.wl.ds.reduce((s,d) => s + d.maxCap, 0); }
+function wlAppMovilCap() { return wlAppMovilDS().maxCap; }
+function wlZombieFrac()  {
+  const zombieCap = C.wl.ds.filter(d => d.iTO === 0).reduce((s,d) => s + d.maxCap, 0);
+  return zombieCap / Math.max(1, wlTotalCap());
+}
+function wlMinITO() { // smallest non-zero ITO (fastest drain)
+  const nonZero = C.wl.ds.filter(d => d.iTO > 0).map(d => d.iTO);
+  return nonZero.length ? Math.min(...nonZero) : 0;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SIMULATION STATE
+// ═══════════════════════════════════════════════════════
+let S = createState();
+function createState() {
+  return {
+    t: 0,            // simulated time (s)
+    running: false,
+    burst: 0,        // remaining burst ticks
+    // App
+    appBlocked: 0,   // GPS-blocked OkHttp threads
+    appRate: 0,      // req/s reaching network
+    // F5
+    f5TcpNew: 0,
+    f5Dropped: 0,
+    // WebLogic pools
+    wlActive: [10, 10, 10],
+    wlWait:   [0,  0,  0],
+    // Zombie connections
+    zombie: 0,
+    // ScanFonacot
+    scanQPS: 0,
+    // DB
+    dbConn: 30,
+    dbQT: 200,       // query time ms
+    dbSat: false,
+    // Circuit breaker
+    cbOpen: false,
+    cbCool: 0,
+    // Rejected
+    rejected: 0,
+    // Chart history (rolling)
+    h: {
+      dbConn:   [],
+      latency:  [],
+      wl0: [], wl1: [], wl2: [],
+      zombie:   [],
+      rej:      [],
+    },
+  };
+}
+
+const HIST = 120;   // chart data points
+const TICK_SIM = 0.5; // simulated seconds per tick
+let tickMs = 150;
+let simInterval = null;
+let lastEvKeys = {};
+
+// ═══════════════════════════════════════════════════════
+//  SIMULATION TICK
+// ═══════════════════════════════════════════════════════
+function tick() {
+  S.t += TICK_SIM;
+  document.getElementById('simClock').textContent = 'T: ' + Math.floor(S.t) + 's';
+
+  // 1. Incoming request rate
+  let rate = C.users * 1.8;  // 1.8 req/s per user (baseline)
+  if (S.burst > 0) {
+    rate *= 3.5;
+    S.burst--;
+    if (S.burst === 0) evlog('INFO', 'Thundering herd finalizado — carga retornando a normal');
+  }
+  if (C.rl) rate = Math.min(rate, 500);
+
+  // App §2.4 — Endpoints duplicados: +25% rate
+  if (C.dupEndpoints) rate *= 1.25;
+
+  // App §10.3 — Carga paralela al login: spike en primeros 8s
+  if (C.parallelLogin && S.t < 8) rate *= 2.2;
+
+  // App §H7 — Session polling: tasa de fondo constante por checkSession() en onResume
+  if (C.sessionPoll) rate += C.users * 0.3;
+
+  // App §H6 — ViewModel retries: requests rechazados se reintentan (amplificación en cascada)
+  if (C.vmRetries) rate += S.rejected * 0.4;
+
+  S.appRate = rate;
+
+  // 2. GPS runBlocking effect
+  // App Android §2.3 — Triple startLocationUpdates: triplica probabilidad de freeze GPS
+  const gpsFreezeProb = C.gps ? (C.tripleGPS ? 0.65 : 0.28) : 0;
+  const gpsDelay = C.gps ? 12 : 0; // avg seconds blocked per affected request
+  S.appBlocked = C.gps ? Math.min(5, Math.ceil(rate * (C.tripleGPS ? 0.55 : 0.25))) : 0;
+
+  // GPS effectively delays requests: those requests hold open TCP sockets
+  // at the server side without sending data (from report section 2.1)
+  const gpsTcpHold = C.gps ? gpsDelay * 0.3 : 0;
+
+  // 3. TCP overhead (keep-alive vs new TCP per request)
+  const tcpMs = C.ka ? 2 : 16; // ms; 14-16ms from tcpdump
+
+  // 4. Effective hold time per JDBC connection (Little's Law: N = λ × W)
+  const holdSec = Math.min(C.timeout, (S.dbQT + tcpMs) / 1000 + gpsDelay * (C.gps ? 0.2 : 0));
+
+  // 5. Concurrent JDBC connections needed
+  const concNeeded = Math.ceil(rate * holdSec);
+  const perNode    = Math.ceil(concNeeded / 3);
+  // Effective pool cap from the app-facing DS (ServiciosWebCreditoDSAppMovil)
+  const maxCap = wlAppMovilCap();
+
+  // 6. Circuit breaker
+  const poolTotal = S.wlActive.reduce((a,b) => a+b, 0);
+  if (C.cb) {
+    const cbThresh = maxCap * 3 * 0.78;
+    if (!S.cbOpen && poolTotal > cbThresh) {
+      S.cbOpen = true; S.cbCool = 12;
+      evlog('WARN', 'Circuit Breaker ABIERTO — rechazando requests, protegiendo DB (' + poolTotal + ' conex. activas)');
+    }
+    if (S.cbOpen) {
+      S.cbCool -= TICK_SIM;
+      if (S.cbCool <= 0 && poolTotal < cbThresh * 0.45) {
+        S.cbOpen = false;
+        evlog('INFO', 'Circuit Breaker CERRADO — sistema recuperado');
+      }
+    }
+  } else {
+    S.cbOpen = false;
+  }
+
+  const cbCap = S.cbOpen ? Math.floor(maxCap * 0.2) : maxCap;
+
+  // 7. Update WebLogic pool state
+  let totalRejected = 0;
+  for (let i = 0; i < 3; i++) {
+    const target = S.cbOpen ? Math.min(perNode, cbCap) : perNode;
+    S.wlActive[i] = Math.max(5,
+      Math.min(cbCap, Math.floor(S.wlActive[i] + (target - S.wlActive[i]) * 0.25)));
+    const waiting = Math.max(0, perNode - cbCap);
+    S.wlWait[i] = waiting;
+    totalRejected += waiting;
+  }
+  // ConnReserveTimeoutSeconds: requests que no obtienen conexión esperan C.wl.connReserveTO y reintentan
+  // A mayor ConnReserveTO, mayor amplificación cuando el pool está saturado
+  const cascadeFactor = C.cb ? 0.05 : (1.2 * (C.wl.connReserveTO / 10));
+  S.rejected = totalRejected * cascadeFactor;
+
+  // 8. Fan-out: ScanFonacot executes N queries per request
+  const reqReaching = Math.min(rate, poolTotal / Math.max(holdSec, 0.05));
+  S.scanQPS = Math.floor(reqReaching * C.fanout);
+
+  // 9. Zombie connections — modelo fiel a 9 DS reales
+  // Los DS con ITO=0 acumulan zombies; los DS con ITO>0 los drenan según su timeout configurado
+  const peakPool = S.wlActive.reduce((a,b) => a+b, 0);
+  const zombieFrac  = wlZombieFrac();   // fracción de capacidad de DS con ITO=0
+  const drainITO    = wlMinITO();       // ITO más agresivo de DS con ITO>0 (ej. 120s)
+
+  // Acumulación proporcional a la fracción de DS zombie
+  const delta = Math.max(0, peakPool - S.zombie) * 0.06 * TICK_SIM * zombieFrac;
+  S.zombie = Math.min(wlTotalCap(), S.zombie + delta);
+
+  // Drenaje de los DS que sí tienen ITO configurado (no en cero)
+  if (drainITO > 0) {
+    const drain = (S.zombie * (1 - zombieFrac)) / drainITO * TICK_SIM;
+    S.zombie = Math.max(0, S.zombie - drain);
+  }
+
+  // App §UnauthorizedInterceptor — 401 no cancela llamadas en vuelo: extiende retención de zombie
+  if (C.noCancel401 && poolTotal > maxCap * 3 * 0.65) {
+    const extendZombie = S.rejected * (C.timeout / 60) * 0.12 * TICK_SIM;
+    S.zombie = Math.min(wlTotalCap(), S.zombie + extendZombie);
+  }
+
+  // 9b. Oracle IDLE_TIME (profile): drena zombies independientemente de WebLogic
+  if (C.ora.idleTime > 0) {
+    const idleDrain = (S.zombie / (C.ora.idleTime * 60)) * TICK_SIM;
+    S.zombie = Math.max(0, S.zombie - idleDrain);
+  }
+
+  // 9c. Oracle SQLNET.EXPIRE_TIME: detecta TCP half-open → limpia zombies más rápido
+  if (C.ora.sqlnetExpire) {
+    const sqlnetDrain = S.zombie * (TICK_SIM / (C.ora.sqlnetMin * 60));
+    S.zombie = Math.max(0, S.zombie - sqlnetDrain);
+  }
+
+  // 10. Total DB connections = zombie + active JDBC leases (fan-out applied)
+  const activeLeases = S.scanQPS * (S.dbQT / 1000);
+  let rawDbConn = Math.min(wlTotalCap(), Math.floor(S.zombie + activeLeases));
+
+  // 10b. Oracle SESSIONS_PER_USER: techo absoluto independiente de WebLogic
+  if (C.ora.sessPerUser > 0) {
+    rawDbConn = Math.min(rawDbConn, C.ora.sessPerUser * 3); // × 3 datasources
+  }
+
+  // 10c. Oracle DRCP: procesos compartidos → techo real del pool de procesos OS
+  if (C.ora.drcp) {
+    rawDbConn = Math.min(rawDbConn, C.ora.drcpSize);
+  }
+
+  // 10d. Oracle Resource Manager: hard limit de sesiones activas por grupo
+  if (C.ora.resMgr) {
+    rawDbConn = Math.min(rawDbConn, C.ora.resMgrLimit);
+  }
+
+  S.dbConn = rawDbConn;
+
+  // 11. DB query time feedback loop (core of the incident — section 2.2)
+  let targetQT;
+  if      (S.dbConn > 2800) targetQT = 9500;
+  else if (S.dbConn > 2200) targetQT = 6000;
+  else if (S.dbConn > 1500) targetQT = 3200;
+  else if (S.dbConn > 900)  targetQT = 1400;
+  else if (S.dbConn > 400)  targetQT = 600;
+  else if (S.dbConn > 150)  targetQT = 350;
+  else                       targetQT = 200;
+  S.dbQT = Math.floor(S.dbQT + (targetQT - S.dbQT) * 0.14);
+
+  // 12. F5 TCP metrics
+  S.f5TcpNew  = C.ka ? Math.floor(rate * 0.03) : Math.floor(rate);
+  S.f5Dropped = Math.max(0, Math.floor(rate - 500)) * (C.rl ? 0 : 0); // with RL: 0 drops above 500
+
+  // 13. Saturation events
+  const wasSat = S.dbSat;
+  S.dbSat = S.dbConn > 2700;
+  if (!wasSat && S.dbSat)
+    evlog('CRIT', 'DB SATURADA: ' + S.dbConn + ' conexiones | latencia: ' + S.dbQT + 'ms | sistema degradado');
+  if (wasSat && !S.dbSat)
+    evlog('INFO', 'DB recuperándose → ' + S.dbConn + ' conexiones | latencia: ' + S.dbQT + 'ms');
+
+  // Pool warnings (debounced per node)
+  const _maxCap = wlAppMovilCap();
+  for (let i = 0; i < 3; i++) {
+    const pct = S.wlActive[i] / _maxCap;
+    const k = 'wl' + i;
+    if (pct > 0.9 && !lastEvKeys[k]) {
+      evlog('CRIT', 'Pool WL-Nodo' + (i+1) + ' al ' + Math.floor(pct*100) + '% (' + S.wlActive[i] + '/' + _maxCap + ') [AppMovilDS] — ConnReserveTO=' + C.wl.connReserveTO + 's espera en solicitudes: ' + S.wlWait[i]);
+      lastEvKeys[k] = S.t;
+    } else if (pct < 0.7) { delete lastEvKeys[k]; }
+  }
+
+  // GPS warning
+  if (C.gps && !lastEvKeys.gps && S.t > 1) {
+    evlog('WARN', 'runBlocking GPS activo: ' + S.appBlocked + ' threads OkHttp bloqueados ~12s por resolución de coordenadas');
+    lastEvKeys.gps = S.t;
+  } else if (!C.gps) { delete lastEvKeys.gps; }
+
+  // Zombie warning
+  if (S.zombie > 150 && !lastEvKeys.zombie) {
+    evlog('WARN', 'Conexiones zombie: ' + Math.floor(S.zombie) + ' (InactiveTimeout=0 — nunca se liberan automáticamente)');
+    lastEvKeys.zombie = S.t;
+  }
+  if (S.zombie < 30) delete lastEvKeys.zombie;
+
+  // Fan-out warning
+  if (S.scanQPS > 1500 && !lastEvKeys.fanout) {
+    evlog('WARN', 'ScanFonacot fan-out ' + C.fanout + 'x → ' + S.scanQPS + ' queries/s hacia Oracle DB');
+    lastEvKeys.fanout = S.t;
+  }
+  if (S.scanQPS < 800) delete lastEvKeys.fanout;
+
+  // 14. Push history
+  function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
+  push(S.h.dbConn,  S.dbConn);
+  push(S.h.latency, S.dbQT);
+  push(S.h.wl0,     S.wlActive[0]);
+  push(S.h.wl1,     S.wlActive[1]);
+  push(S.h.wl2,     S.wlActive[2]);
+  push(S.h.zombie,  Math.floor(S.zombie));
+  push(S.h.rej,     Math.floor(S.rejected));
+
+  updateStatus();
+  updateOracleQuickStatus();
+  updateWLQuickStatus();
+  updateAppQuickStatus();
+  spawnPackets();
+}
+
+// ═══════════════════════════════════════════════════════
+//  SIM CONTROLS
+// ═══════════════════════════════════════════════════════
+function toggleSim() {
+  const btn   = document.getElementById('btnPlay');
+  const chip  = document.getElementById('simStateChip');
+  const overlay = document.getElementById('archOverlay');
+  if (S.running) {
+    clearInterval(simInterval);
+    S.running = false;
+    btn.textContent = '▶ CONTINUAR';
+    btn.classList.add('btn-pulse');
+    chip.textContent = '⏸ PAUSADO';
+    chip.className = 'stopped';
+  } else {
+    simInterval = setInterval(tick, tickMs);
+    S.running = true;
+    btn.textContent = '⏸ PAUSAR';
+    btn.classList.remove('btn-pulse');
+    chip.textContent = '▶ CORRIENDO';
+    chip.className = 'running';
+    if (overlay) overlay.style.opacity = '0';
+    setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 300);
+    if (S.t === 0) evlog('INFO', 'Simulación iniciada — Escenario: app móvil activa (8:00 AM, burst inicial)');
+  }
+}
+function resetSim() {
+  clearInterval(simInterval);
+  S = createState();
+  packets = []; lastEvKeys = {};
+  const btn = document.getElementById('btnPlay');
+  btn.textContent = '▶ INICIAR';
+  btn.classList.add('btn-pulse');
+  document.getElementById('simClock').textContent = 'T: 0s';
+  document.getElementById('evLog').innerHTML = 'Sistema reiniciado. Presiona INICIAR.<br>';
+  const chip = document.getElementById('simStateChip');
+  chip.textContent = '⏹ DETENIDO'; chip.className = 'stopped';
+  const overlay = document.getElementById('archOverlay');
+  if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
+  updateStatus();
+}
+function setSpeed(ms) {
+  tickMs = parseInt(ms);
+  if (S.running) { clearInterval(simInterval); simInterval = setInterval(tick, tickMs); }
+}
+function doBurst() {
+  S.burst = 22;
+  evlog('WARN', 'THUNDERING HERD activado — ' + (C.users * 3) + ' reconexiones simultáneas (usuarios reconectando tras inactividad)');
+}
+
+function onCtrl(k, v) {
+  switch(k) {
+    case 'users':   C.users   = +v; document.getElementById('vUsers').textContent = v; break;
+    case 'timeout':
+      C.timeout = +v;
+      // Sincronizar ambos selectores (panel y modal App)
+      ['selTO', 'appSelTO'].forEach(id => { const el = document.getElementById(id); if (el) el.value = v; });
+      break;
+    case 'gps':
+      C.gps = v;
+      evlog(v ? 'WARN' : 'INFO', 'runBlocking GPS ' + (v ? 'ACTIVADO (§2.1) — threads OkHttp bloqueados hasta 20s por resolución GPS en HeaderInterceptor' : 'DESACTIVADO — GPS resuelto por cache en memoria'));
+      updateAppQuickStatus();
+      break;
+    case 'dupep':
+      C.dupEndpoints = v;
+      evlog(v ? 'WARN' : 'INFO', 'Endpoints duplicados (§2.4) ' + (v ? 'ACTIVOS — verificarExistenciaCreditoActivo y obtenerUltimaVersionApp invocados 2x desde ViewModels (+25% req/s)' : 'CORREGIDOS — endpoints unificados en ProxyApiService'));
+      updateAppQuickStatus();
+      break;
+    case 'trigps':
+      C.tripleGPS = v;
+      evlog(v ? 'WARN' : 'INFO', 'Triple startLocationUpdates() (§2.3) ' + (v ? 'ACTIVO — 3 listeners GPS (onCreate + onStart + onResume), prob. bloqueo GPS ×3' : 'CORREGIDO — un único punto de registro en ciclo de vida'));
+      updateAppQuickStatus();
+      break;
+    case 'parlogin':
+      C.parallelLogin = v;
+      evlog(v ? 'WARN' : 'INFO', 'Carga paralela al login (§10.3) ' + (v ? 'ACTIVA — 6-10 requests simultáneos al iniciar sesión → spike inicial ×2.2' : 'CORREGIDA — carga diferida/secuencial'));
+      updateAppQuickStatus();
+      break;
+    case 'nocancel401':
+      C.noCancel401 = v;
+      evlog(v ? 'WARN' : 'INFO', '401 sin cancelar en vuelo ' + (v ? 'ACTIVO — llamadas en-vuelo continúan hasta timeout completo (180s) aunque ya llegó un 401 → zombie extra' : 'CORREGIDO — UnauthorizedInterceptor cancela todas las llamadas en vuelo'));
+      updateAppQuickStatus();
+      break;
+    case 'poll':
+      C.sessionPoll = v;
+      evlog(v ? 'WARN' : 'INFO', 'Session polling ' + (v ? 'ACTIVO (§H7) — sessionViewModel.checkSession() en cada onResume → +' + Math.round(C.users*0.3) + ' req/s de fondo' : 'CORREGIDO — verificación de sesión lazy/event-driven'));
+      updateAppQuickStatus();
+      break;
+    case 'vmretry':
+      C.vmRetries = v;
+      evlog(v ? 'WARN' : 'INFO', 'ViewModel retries ' + (v ? 'ACTIVOS (§H6) — 40% de requests rechazados por ConnReserveTO reintentan → amplificación en cascada' : 'CORREGIDOS — sin retry automático en ViewModels'));
+      updateAppQuickStatus();
+      break;
+    case 'ka':
+      C.ka = v;
+      evlog(v ? 'INFO' : 'WARN', 'Keep-Alive TCP ' + (v ? 'ACTIVADO en F5 → WebLogic — reduciendo overhead SYN/FIN por request' : 'DESACTIVADO — cada request abre nueva conexión TCP (157 conex/51s observadas en tcpdump)'));
+      break;
+    case 'rl':
+      C.rl = v;
+      evlog(v ? 'INFO' : 'WARN', 'Rate Limiting F5 ' + (v ? 'ACTIVADO — máx 500 req/s hacia WebLogic' : 'DESACTIVADO'));
+      break;
+    case 'fanout': C.fanout = +v; document.getElementById('vFanout').textContent = v; break;
+    case 'cb':
+      C.cb = v;
+      evlog(v ? 'INFO' : 'WARN', 'Circuit Breaker ' + (v ? 'HABILITADO entre WebLogic y ScanFonacot' : 'DESHABILITADO — sin protección ante cascada de fallos'));
+      break;
+  }
+}
+
+const ORA_INCIDENT    = { idleTime:0, sessPerUser:0, sqlnetExpire:false, sqlnetMin:10, drcp:false, drcpSize:200, resMgr:false, resMgrLimit:200 };
+const ORA_RECOMMENDED = { idleTime:5, sessPerUser:200, sqlnetExpire:true, sqlnetMin:10, drcp:true,  drcpSize:200, resMgr:true,  resMgrLimit:200 };
+const ORA_NEUTRAL     = { idleTime:0, sessPerUser:0, sqlnetExpire:false, sqlnetMin:10, drcp:false, drcpSize:200, resMgr:false, resMgrLimit:200 };
+
+// WL DS preset factories — reflejan los valores REALES del cliente
+function makeWLIncident() {
+  return {
+    connReserveTO: 10,
+    ds: [
+      { name:'ServiciosWebCreditoDS',        maxCap:3000, iTO:120, appFlow:false },
+      { name:'ServiciosWebCreditoDSAppMovil', maxCap:1400, iTO:120, appFlow:true  },
+      { name:'ServiciosWebDS',               maxCap:200,  iTO:0,   appFlow:false },
+      { name:'ServiciosWebCobranzaDS',        maxCap:50,   iTO:0,   appFlow:false },
+      { name:'WSOperacionesTopazDS',          maxCap:50,   iTO:0,   appFlow:false },
+      { name:'afilia CTDS',                   maxCap:50,   iTO:0,   appFlow:false },
+      { name:'bursatilizacionWS',             maxCap:50,   iTO:0,   appFlow:false },
+      { name:'WSCobranza',                    maxCap:50,   iTO:0,   appFlow:false },
+      { name:'WSCreditoSeguroDS',             maxCap:50,   iTO:0,   appFlow:false },
+    ],
+  };
+}
+function makeWLRecommended() {
+  return {
+    connReserveTO: 30,
+    ds: [
+      { name:'ServiciosWebCreditoDS',        maxCap:200,  iTO:300, appFlow:false },
+      { name:'ServiciosWebCreditoDSAppMovil', maxCap:120,  iTO:300, appFlow:true  },
+      { name:'ServiciosWebDS',               maxCap:80,   iTO:300, appFlow:false },
+      { name:'ServiciosWebCobranzaDS',        maxCap:40,   iTO:300, appFlow:false },
+      { name:'WSOperacionesTopazDS',          maxCap:40,   iTO:300, appFlow:false },
+      { name:'afilia CTDS',                   maxCap:40,   iTO:300, appFlow:false },
+      { name:'bursatilizacionWS',             maxCap:40,   iTO:300, appFlow:false },
+      { name:'WSCobranza',                    maxCap:40,   iTO:300, appFlow:false },
+      { name:'WSCreditoSeguroDS',             maxCap:40,   iTO:300, appFlow:false },
+    ],
+  };
+}
+
+function applyPreset(p) {
+  if (p === 'incident') {
+    C = { users:200, timeout:180, gps:true, dupEndpoints:true, tripleGPS:true, parallelLogin:true,
+          noCancel401:true, sessionPoll:true, vmRetries:true,
+          ka:false, rl:false, fanout:7, cb:false,
+          wl: makeWLIncident(), ora: Object.assign({}, ORA_INCIDENT) };
+    evlog('CRIT', 'PRESET INCIDENTE — valores reales del cliente: CreditoDS=3000, AppMovil=1400, 7 DS con ITO=0, ConnRTO=10s, todos los defectos App activos');
+  } else if (p === 'recommended') {
+    C = { users:200, timeout:30, gps:false, dupEndpoints:false, tripleGPS:false, parallelLogin:false,
+          noCancel401:false, sessionPoll:false, vmRetries:false,
+          ka:true, rl:true, fanout:7, cb:true,
+          wl: makeWLRecommended(), ora: Object.assign({}, ORA_RECOMMENDED) };
+    evlog('INFO', 'PRESET RECOMENDADO — MaxCap calculado ~120 AppMovil, todos ITO=300s, ConnRTO=30s, defectos App corregidos, Oracle IDLE/SQLNET/DRCP/RM activos');
+  } else {
+    C = { users:80, timeout:60, gps:false, dupEndpoints:false, tripleGPS:false, parallelLogin:false,
+          noCancel401:false, sessionPoll:false, vmRetries:false,
+          ka:false, rl:false, fanout:3, cb:false,
+          wl: makeWLIncident(), ora: Object.assign({}, ORA_NEUTRAL) };
+    evlog('INFO', 'PRESET: Valores neutros aplicados');
+  }
+  syncUI();
+  updatePresetBadge(p);
+}
+
+function syncUI() {
+  document.getElementById('slUsers').value = C.users;
+  document.getElementById('vUsers').textContent = C.users;
+  document.getElementById('selTO').value       = C.timeout;
+  document.getElementById('togKA').checked     = C.ka;
+  document.getElementById('togRL').checked     = C.rl;
+  document.getElementById('slFanout').value    = C.fanout;
+  document.getElementById('vFanout').textContent = C.fanout;
+  document.getElementById('togCB').checked     = C.cb;
+  syncOracleModalUI();
+  updateOracleQuickStatus();
+  syncWLModalUI();
+  updateWLQuickStatus();
+  syncAppModalUI();
+  updateAppQuickStatus();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PRESET BADGE + KEYBOARD
+// ═══════════════════════════════════════════════════════
+let currentPreset = 'incident';
+
+function updatePresetBadge(p) {
+  currentPreset = p;
+  const badge = document.getElementById('presetBadge');
+  if (!badge) return;
+  const map = {
+    incident:    { cls: 'pb-incident',    label: '⚠ Incidente' },
+    recommended: { cls: 'pb-recommended', label: '✓ Recomendado' },
+    neutral:     { cls: 'pb-neutral',     label: '↺ Neutro' },
+  };
+  const info = map[p] || map.neutral;
+  badge.className = info.cls;
+  badge.textContent = info.label;
+  // Highlight active preset button
+  ['incident','recommended','neutral'].forEach(k => {
+    const btn = document.getElementById('pbtn' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (btn) btn.style.outline = k === p ? '2px solid currentColor' : '';
+  });
+}
+
+// Global ESC handler: cierra cualquier modal abierto
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  ['oracleModal','wlModal','appModal'].forEach(id => {
+    const m = document.getElementById(id);
+    if (m && m.style.display !== 'none') m.style.display = 'none';
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+//  ORACLE MODAL
+// ═══════════════════════════════════════════════════════
+function openOracleModal() {
+  syncOracleModalUI();
+  const m = document.getElementById('oracleModal');
+  m.style.display = 'flex';
+}
+function closeOracleModal() {
+  document.getElementById('oracleModal').style.display = 'none';
+}
+// Close on backdrop click
+document.getElementById('oracleModal').addEventListener('click', function(e) {
+  if (e.target === this) closeOracleModal();
+});
+
+function oraCtrl(key, val) {
+  const numVal = parseFloat(val);
+  switch(key) {
+    case 'idleTime':
+      C.ora.idleTime = numVal;
+      document.getElementById('vOraIdleTime').textContent = numVal === 0 ? '0 (OFF)' : numVal + ' min';
+      evlog(numVal > 0 ? 'INFO' : 'WARN',
+        'Oracle IDLE_TIME ' + (numVal > 0 ? '= ' + numVal + ' min — sesiones inactivas se eliminarán automáticamente' : '= 0 (UNLIMITED) — sesiones zombie permanecen indefinidamente'));
+      break;
+    case 'sessPerUser':
+      C.ora.sessPerUser = numVal;
+      document.getElementById('vOraSessPerUser').textContent = numVal === 0 ? '0 (∞)' : numVal + ' sesiones';
+      evlog(numVal > 0 ? 'INFO' : 'WARN',
+        'Oracle SESSIONS_PER_USER ' + (numVal > 0 ? '= ' + numVal + ' — techo Oracle independiente de WebLogic MaxCapacity' : '= UNLIMITED'));
+      break;
+    case 'sqlnetExpire':
+      C.ora.sqlnetExpire = val;
+      document.getElementById('vOraSqlnet').textContent = val ? 'ON' : 'OFF';
+      evlog(val ? 'INFO' : 'WARN',
+        'Oracle SQLNET.EXPIRE_TIME ' + (val ? 'ACTIVADO — probe TCP cada ' + C.ora.sqlnetMin + ' min detectará conexiones half-open' : 'DESACTIVADO — TCP zombies no detectados por Oracle'));
+      break;
+    case 'sqlnetMin':
+      C.ora.sqlnetMin = numVal;
+      document.getElementById('vOraSqlnetMin').textContent = numVal + ' min';
+      break;
+    case 'drcp':
+      C.ora.drcp = val;
+      document.getElementById('vOraDrcp').textContent = val ? 'ON (pool compartido)' : 'OFF (1:1 procesos)';
+      evlog(val ? 'INFO' : 'WARN',
+        'Oracle DRCP ' + (val ? 'ACTIVADO — pool de ' + C.ora.drcpSize + ' workers compartidos (vs. ' + wlTotalCap() + ' cap. total sin DRCP)' : 'DESACTIVADO — modelo 1 conexión = 1 proceso OS'));
+      break;
+    case 'drcpSize':
+      C.ora.drcpSize = numVal;
+      document.getElementById('vOraDrcpSize').textContent = numVal;
+      break;
+    case 'resMgr':
+      C.ora.resMgr = val;
+      document.getElementById('vOraResMgr').textContent = val ? 'ON (activo)' : 'OFF (sin límite)';
+      evlog(val ? 'INFO' : 'WARN',
+        'Oracle Resource Manager ' + (val ? 'ACTIVADO — hard limit ' + C.ora.resMgrLimit + ' sesiones activas por grupo' : 'DESACTIVADO — sin límite de sesiones por grupo de consumidores'));
+      break;
+    case 'resMgrLimit':
+      C.ora.resMgrLimit = numVal;
+      document.getElementById('vOraResMgrLimit').textContent = numVal;
+      break;
+  }
+  updateOracleQuickStatus();
+}
+
+function applyOracleRecommended() {
+  C.ora = Object.assign({}, ORA_RECOMMENDED);
+  syncOracleModalUI();
+  updateOracleQuickStatus();
+  evlog('INFO', 'Oracle: RECOMENDACIONES APLICADAS — IDLE_TIME=5min, SESSIONS_PER_USER=200, SQLNET.EXPIRE=10min, DRCP=200 workers, ResourceManager=200 sesiones');
+}
+
+function applyOracleIncident() {
+  C.ora = { idleTime:0, sessPerUser:0, sqlnetExpire:false,
+            sqlnetMin:10, drcp:false, drcpSize:200, resMgr:false, resMgrLimit:200 };
+  syncOracleModalUI();
+  updateOracleQuickStatus();
+  evlog('WARN', 'Oracle INCIDENTE restaurado — IDLE_TIME=UNLIMITED, sin SQLNET.EXPIRE, sin DRCP, sin Resource Manager');
+}
+
+function syncOracleModalUI() {
+  const o = C.ora;
+  const el = (id) => document.getElementById(id);
+  if (!el('oraIdleTime')) return; // modal not yet rendered
+  el('oraIdleTime').value      = o.idleTime;
+  el('vOraIdleTime').textContent = o.idleTime === 0 ? '0 (OFF)' : o.idleTime + ' min';
+  el('oraSessPerUser').value   = o.sessPerUser;
+  el('vOraSessPerUser').textContent = o.sessPerUser === 0 ? '0 (∞)' : o.sessPerUser + ' sesiones';
+  el('oraSqlnetToggle').checked = o.sqlnetExpire;
+  el('vOraSqlnet').textContent  = o.sqlnetExpire ? 'ON' : 'OFF';
+  el('oraSqlnetMin').value      = o.sqlnetMin;
+  el('vOraSqlnetMin').textContent = o.sqlnetMin + ' min';
+  el('oraDrcpToggle').checked   = o.drcp;
+  el('vOraDrcp').textContent    = o.drcp ? 'ON (pool compartido)' : 'OFF (1:1 procesos)';
+  el('oraDrcpSize').value       = o.drcpSize;
+  el('vOraDrcpSize').textContent = o.drcpSize;
+  el('oraResMgrToggle').checked = o.resMgr;
+  el('vOraResMgr').textContent  = o.resMgr ? 'ON (activo)' : 'OFF (sin límite)';
+  el('oraResMgrLimit').value    = o.resMgrLimit;
+  el('vOraResMgrLimit').textContent = o.resMgrLimit;
+}
+
+function updateOracleQuickStatus() {
+  const o = C.ora;
+  const qs = document.getElementById('oraQuickStatus');
+  if (!qs) return;
+  const dot = (v) => v ? '<span style="color:#3fb950">●</span>' : '<span style="color:#f85149">○</span>';
+  qs.innerHTML =
+    dot(o.idleTime>0)   + 'IT:' + (o.idleTime>0 ? o.idleTime+'m' : 'OFF') +
+    ' ' + dot(o.sqlnetExpire) + 'SN:' + (o.sqlnetExpire ? o.sqlnetMin+'m' : 'OFF') +
+    ' ' + dot(o.sessPerUser>0) + 'SPU:' + (o.sessPerUser>0 ? o.sessPerUser : '∞') +
+    ' ' + dot(o.drcp)   + 'DRCP:' + (o.drcp ? o.drcpSize : 'OFF') +
+    ' ' + dot(o.resMgr) + 'RM:' + (o.resMgr ? o.resMgrLimit : 'OFF');
+}
+
+// ═══════════════════════════════════════════════════════
+//  WEBLOGIC MODAL
+// ═══════════════════════════════════════════════════════
+function openWLModal() {
+  syncWLModalUI();
+  document.getElementById('wlModal').style.display = 'flex';
+}
+function closeWLModal() {
+  document.getElementById('wlModal').style.display = 'none';
+}
+document.getElementById('wlModal').addEventListener('click', function(e) {
+  if (e.target === this) closeWLModal();
+});
+
+function syncWLModalUI() {
+  const tb = document.getElementById('wlDsTableBody');
+  if (!tb) return;
+  tb.innerHTML = '';
+  C.wl.ds.forEach((ds, idx) => {
+    const isZombie = ds.iTO === 0;
+    const isCrit   = ds.appFlow || ds.maxCap >= 1000;
+    const rowBg    = isCrit ? 'background:rgba(248,81,73,0.05)' : '';
+    const badge    = ds.appFlow ? '<span style="background:#1f3a5f;color:#58a6ff;font-size:9px;padding:1px 4px;border-radius:3px;margin-left:4px;">AppMovil</span>'
+                   : ds.maxCap >= 1000 ? '<span style="background:#3d1f1f;color:#f85149;font-size:9px;padding:1px 4px;border-radius:3px;margin-left:4px;">Crítico</span>' : '';
+    tb.innerHTML += `
+    <tr style="border-bottom:1px solid #21262d;${rowBg}">
+      <td style="padding:8px 8px;font-family:monospace;font-size:11px;color:#e6edf3;">${ds.name}${badge}</td>
+      <td style="padding:8px 8px;text-align:center;">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+          <input type="range" min="10" max="3000" value="${ds.maxCap}" style="width:90px;"
+            oninput="wlCtrl('maxCap',${idx},this.value)">
+          <span id="vWlMax_${idx}" style="font-family:monospace;color:${isCrit?'#f85149':'#e6edf3'};font-weight:700;min-width:45px;">${ds.maxCap}</span>
+        </div>
+      </td>
+      <td style="padding:8px 8px;text-align:center;">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+          <input type="range" min="0" max="600" value="${ds.iTO}" step="10" style="width:90px;"
+            oninput="wlCtrl('iTO',${idx},this.value)">
+          <span id="vWlITO_${idx}" style="font-family:monospace;color:${isZombie?'#f85149':'#3fb950'};font-weight:700;min-width:55px;">${ds.iTO === 0 ? '0 (zombie)' : ds.iTO + 's'}</span>
+        </div>
+      </td>
+      <td style="padding:8px 8px;text-align:center;color:#3fb950;font-family:monospace;font-size:11px;font-weight:700;">${ds.maxCap >= 1000 ? '120–200' : '30–50'}·ITO≥300s</td>
+      <td style="padding:8px 8px;font-size:10px;color:#7d8590;">
+        ${isZombie ? '<span style="color:#f85149;">⚠ zombie</span>' : '<span style="color:#3fb950;">✓ auto-drain</span>'}
+        ${ds.appFlow ? ' · flujo principal app' : ''}
+      </td>
+    </tr>`;
+  });
+  // ConnReserveTO
+  document.getElementById('wlConnRTO').value = C.wl.connReserveTO;
+  document.getElementById('vWlConnRTO').textContent = C.wl.connReserveTO + 's';
+  // Totals
+  document.getElementById('wlTotalCapDisplay').textContent = wlTotalCap().toLocaleString();
+  const zombieCap = C.wl.ds.filter(d=>d.iTO===0).reduce((s,d)=>s+d.maxCap,0);
+  document.getElementById('wlZombieCapDisplay').textContent = zombieCap.toLocaleString();
+}
+
+function wlCtrl(field, idx, val) {
+  if (field === 'connRTO') {
+    C.wl.connReserveTO = +val;
+    document.getElementById('vWlConnRTO').textContent = val + 's';
+    evlog(+val >= 30 ? 'INFO' : 'WARN',
+      'ConnReserveTimeoutSeconds = ' + val + 's' + (+val < 30 ? ' — valor bajo amplifica reintentos en cascada' : ' — valor razonable, reduce amplificación'));
+  } else if (field === 'maxCap') {
+    C.wl.ds[idx].maxCap = +val;
+    const el = document.getElementById('vWlMax_' + idx);
+    if (el) el.textContent = val;
+    evlog('INFO', 'WL DS [' + C.wl.ds[idx].name + '] MaxCapacity = ' + val);
+  } else if (field === 'iTO') {
+    const numVal = +val;
+    C.wl.ds[idx].iTO = numVal;
+    const el = document.getElementById('vWlITO_' + idx);
+    if (el) {
+      el.textContent   = numVal === 0 ? '0 (zombie)' : numVal + 's';
+      el.style.color   = numVal === 0 ? '#f85149' : '#3fb950';
+    }
+    if (numVal === 0)
+      evlog('WARN', 'WL DS [' + C.wl.ds[idx].name + '] InactiveTO = 0 → ZOMBIE (CRÍTICA #2)');
+    else
+      evlog('INFO', 'WL DS [' + C.wl.ds[idx].name + '] InactiveTO = ' + numVal + 's — conexiones se liberarán automáticamente');
+  }
+  // Refresh totals
+  if (document.getElementById('wlTotalCapDisplay')) {
+    document.getElementById('wlTotalCapDisplay').textContent = wlTotalCap().toLocaleString();
+    const zombieCap = C.wl.ds.filter(d=>d.iTO===0).reduce((s,d)=>s+d.maxCap,0);
+    document.getElementById('wlZombieCapDisplay').textContent = zombieCap.toLocaleString();
+  }
+  updateWLQuickStatus();
+}
+
+function applyWLRecommended() {
+  const rec = makeWLRecommended();
+  C.wl.ds = rec.ds.map(d => Object.assign({}, d));
+  C.wl.connReserveTO = rec.connReserveTO;
+  syncWLModalUI();
+  updateWLQuickStatus();
+  evlog('INFO', 'WebLogic RECOMENDADO — MaxCap calculado por DS (120–200), todos ITO=300s, ConnRTO=30s');
+}
+
+function applyWLIncident() {
+  const inc = makeWLIncident();
+  C.wl.ds = inc.ds.map(d => Object.assign({}, d));
+  C.wl.connReserveTO = inc.connReserveTO;
+  syncWLModalUI();
+  updateWLQuickStatus();
+  evlog('WARN', 'WebLogic INCIDENTE restaurado — configuración original del cliente (ITO=0 en 7 DS, MaxCap 3000/1400)');
+}
+
+function updateWLQuickStatus() {
+  const qs = document.getElementById('wlQuickStatus');
+  if (!qs) return;
+  const appDs      = wlAppMovilDS();
+  const critDs     = C.wl.ds.find(d => d.maxCap >= 1000 && !d.appFlow);
+  const zombieCount = C.wl.ds.filter(d => d.iTO === 0).length;
+  const appColor   = appDs.maxCap > 500 ? '#f85149' : '#3fb950';
+  const critColor  = (critDs && critDs.maxCap > 500) ? '#f85149' : '#3fb950';
+  const rtoColor   = C.wl.connReserveTO >= 30 ? '#3fb950' : '#f85149';
+  const zColor     = zombieCount > 0 ? '#f85149' : '#3fb950';
+  qs.innerHTML =
+    'App:<b style="color:' + appColor + '">' + appDs.maxCap + '</b>' +
+    ' Cred:<b style="color:' + critColor + '">' + (critDs ? critDs.maxCap : '?') + '</b>' +
+    ' · <span style="color:' + zColor + '">Z:' + zombieCount + '/9</span>' +
+    ' · RTO:<b style="color:' + rtoColor + '">' + C.wl.connReserveTO + 's</b>';
+}
+
+// ═══════════════════════════════════════════════════════
+//  APP ANDROID MODAL
+// ═══════════════════════════════════════════════════════
+function openAppModal() {
+  syncAppModalUI();
+  document.getElementById('appModal').style.display = 'flex';
+}
+function closeAppModal() {
+  document.getElementById('appModal').style.display = 'none';
+}
+document.getElementById('appModal').addEventListener('click', function(e) {
+  if (e.target === this) closeAppModal();
+});
+
+function syncAppModalUI() {
+  const e = (id) => document.getElementById(id);
+  if (!e('appSelTO')) return;
+  e('appSelTO').value      = C.timeout;
+  e('appTogGPS').checked   = C.gps;
+  e('appTogTriGPS').checked = C.tripleGPS;
+  e('appTogDupEP').checked  = C.dupEndpoints;
+  e('appTogParLogin').checked = C.parallelLogin;
+  e('appTogNoCancel').checked = C.noCancel401;
+  e('appTogPoll').checked   = C.sessionPoll;
+  e('appTogRetry').checked  = C.vmRetries;
+}
+
+function applyAppRecommended() {
+  C.timeout = 30; C.gps = false; C.tripleGPS = false; C.dupEndpoints = false;
+  C.parallelLogin = false; C.noCancel401 = false; C.sessionPoll = false; C.vmRetries = false;
+  syncAppModalUI();
+  updateAppQuickStatus();
+  evlog('INFO', 'App Android CORRECCIONES APLICADAS — timeout=30s, GPS cache, endpoints unificados, carga diferida, 401 cancela, sin polling, sin retries');
+}
+
+function applyAppIncident() {
+  C.timeout = 180; C.gps = true; C.tripleGPS = true; C.dupEndpoints = true;
+  C.parallelLogin = true; C.noCancel401 = true; C.sessionPoll = true; C.vmRetries = true;
+  syncAppModalUI();
+  updateAppQuickStatus();
+  evlog('CRIT', 'App Android TODOS LOS DEFECTOS ACTIVADOS — estado del incidente real');
+}
+
+function updateAppQuickStatus() {
+  const qs = document.getElementById('appQuickStatus');
+  if (!qs) return;
+  const dot = (v) => v ? '<span style="color:#f85149">●</span>' : '<span style="color:#3fb950">○</span>';
+  const activeCount = [C.gps, C.tripleGPS, C.dupEndpoints, C.parallelLogin, C.noCancel401, C.sessionPoll, C.vmRetries].filter(Boolean).length;
+  const timeoutLabel = C.timeout >= 90 ? '<span style="color:#f85149">' + C.timeout + 's</span>' : '<span style="color:#3fb950">' + C.timeout + 's</span>';
+  qs.innerHTML =
+    dot(C.gps)+'GPS ' + dot(C.dupEndpoints)+'DupEP ' + dot(C.tripleGPS)+'3×GPS' +
+    ' · TO:' + timeoutLabel +
+    ' · ' + dot(C.parallelLogin)+'Login ' + dot(C.noCancel401)+'401 ' + dot(C.sessionPoll)+'Poll ' + dot(C.vmRetries)+'Retry' +
+    ' <span style="color:#7d8590;font-size:9px;">(' + activeCount + '/7)</span>';
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATUS TABLE
+// ═══════════════════════════════════════════════════════
+function badge(lvl) {
+  const m = { green:'bg Normal', yellow:'by Alerta', red:'br Crítico', gray:'bx Inactivo' };
+  const [cls, lbl] = (m[lvl] || 'bx —').split(' ');
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+function bar(pct, lvl) {
+  const c = { green: '#3fb950', yellow: '#d29922', red: '#f85149' }[lvl] || '#7d8590';
+  return `<div class="fillbar"><div class="fillbar-inner" style="width:${Math.min(100,pct).toFixed(0)}%;background:${c}"></div></div>`;
+}
+function lvl(pct, lo=60, hi=85) { return pct > hi ? 'red' : pct > lo ? 'yellow' : 'green'; }
+
+function updateStatus() {
+  const _mc  = wlAppMovilCap();
+  const wPct = S.wlActive.map((v,i) => Math.floor(v / _mc * 100));
+  const dbPct = Math.floor(S.dbConn / 3500 * 100);
+  const scanPct = Math.floor(S.scanQPS / 2000 * 100);
+  const appPct  = Math.floor(S.appBlocked / 5 * 100);
+  const f5Pct   = Math.floor(S.f5TcpNew / 500 * 100);
+
+  document.getElementById('stblBody').innerHTML = `
+<tr><td>📱 App Android</td><td>Threads OkHttp bloqueados GPS</td>
+  <td>${S.appBlocked} / 5 hilos — GPS delay: ${C.gps ? '~12s' : '0s'} — Timeout: ${C.timeout}s</td>
+  <td>${badge(lvl(appPct,40,70))}</td><td>${bar(appPct, lvl(appPct,40,70))}</td></tr>
+<tr><td>🛡 Radware WAF</td><td>Throughput req/s</td>
+  <td>${Math.floor(S.appRate)} req/s entrantes</td>
+  <td>${badge(lvl(S.appRate/600*100))}</td><td>${bar(S.appRate/600*100, lvl(S.appRate/600*100))}</td></tr>
+<tr><td>🔒 Firewall CheckPoint</td><td>Paquetes procesados/s</td>
+  <td>${Math.floor(S.f5TcpNew * (C.ka ? 20 : 1))} pkts/s ${S.dbSat ? '⚠ drops kernel' : ''}</td>
+  <td>${badge(S.dbSat ? 'red' : 'green')}</td><td>${bar(S.appRate/600*100, S.dbSat ? 'red' : 'green')}</td></tr>
+<tr><td>⚖ F5 Load Balancer</td><td>Nuevas conexiones TCP/s ${C.ka ? '(keep-alive ✓)' : '(sin keep-alive ⚠)'}</td>
+  <td>${S.f5TcpNew} TCP new/s${C.rl ? ' — Rate Limited: 500 req/s' : ''}</td>
+  <td>${badge(lvl(f5Pct))}</td><td>${bar(f5Pct, lvl(f5Pct))}</td></tr>
+<tr><td>🖥 WL Nodo 1 <span style="font-size:9px;color:#7d8590;">(AppMovil DS ${wlAppMovilCap()})</span></td><td>Pool JDBC ${S.wlActive[0]} / ${_mc} — Waiting: ${S.wlWait[0]}</td>
+  <td>${wPct[0]}% activo · zombie total: ${Math.floor(S.zombie)} · ITO zombie DS: ${C.wl.ds.filter(d=>d.iTO===0).length}/9</td>
+  <td>${badge(lvl(wPct[0]))}</td><td>${bar(wPct[0], lvl(wPct[0]))}</td></tr>
+<tr><td>🖥 WL Nodo 2 <span style="font-size:9px;color:#7d8590;">(ConnRTO: ${C.wl.connReserveTO}s)</span></td><td>Pool JDBC ${S.wlActive[1]} / ${_mc} — Waiting: ${S.wlWait[1]}</td>
+  <td>${wPct[1]}% activo · ${S.cbOpen ? '🔴 CB ABIERTO' : 'CB cerrado'}</td>
+  <td>${badge(lvl(wPct[1]))}</td><td>${bar(wPct[1], lvl(wPct[1]))}</td></tr>
+<tr><td>🖥 WL Nodo 3 <span style="font-size:9px;color:#7d8590;">(CreditoDS ${C.wl.ds[0].maxCap})</span></td><td>Pool JDBC ${S.wlActive[2]} / ${_mc} — Waiting: ${S.wlWait[2]}</td>
+  <td>${wPct[2]}% activo · CreditoDS ITO: ${C.wl.ds[0].iTO}s</td>
+  <td>${badge(lvl(wPct[2]))}</td><td>${bar(wPct[2], lvl(wPct[2]))}</td></tr>
+<tr><td>🔀 ScanFonacot Cluster</td><td>Fan-out ${C.fanout}× — queries/s hacia Oracle</td>
+  <td>${S.scanQPS} queries/s generadas</td>
+  <td>${badge(lvl(scanPct,30,65))}</td><td>${bar(scanPct, lvl(scanPct,30,65))}</td></tr>
+<tr><td>🗄 Oracle DB (2 nodos)</td><td>Conexiones activas totales</td>
+  <td>${S.dbConn} conex | ${S.dbQT}ms avg query | zombie: ${Math.floor(S.zombie)} | ${S.dbSat ? '🔴 SATURADA' : '🟢 OK'}</td>
+  <td>${badge(lvl(dbPct,42,80))}</td><td>${bar(dbPct, lvl(dbPct,42,80))}</td></tr>
+<tr style="background:rgba(227,179,65,0.04);">
+  <td style="padding-left:16px;color:#e3b341;">⚙ Oracle Params</td>
+  <td style="color:#7d8590;font-size:10px;">
+    IDLE_TIME · SESSIONS_PER_USER · SQLNET · DRCP · Resource Manager
+    <span style="color:#58a6ff;cursor:pointer;margin-left:6px;" onclick="openOracleModal()">(configurar)</span>
+  </td>
+  <td style="font-size:10px;font-family:monospace;">
+    IT:${C.ora.idleTime>0?C.ora.idleTime+'m':'OFF'} |
+    SPU:${C.ora.sessPerUser>0?C.ora.sessPerUser:'∞'} |
+    SQLNET:${C.ora.sqlnetExpire?C.ora.sqlnetMin+'m':'OFF'} |
+    DRCP:${C.ora.drcp?C.ora.drcpSize:'OFF'} |
+    RM:${C.ora.resMgr?C.ora.resMgrLimit:'OFF'}
+  </td>
+  <td>${badge(C.ora.idleTime>0&&C.ora.sqlnetExpire&&C.ora.drcp?'green':C.ora.idleTime>0||C.ora.sqlnetExpire?'yellow':'red')}</td>
+  <td>${bar(
+    ((C.ora.idleTime>0?1:0)+(C.ora.sqlnetExpire?1:0)+(C.ora.sessPerUser>0?1:0)+(C.ora.drcp?1:0)+(C.ora.resMgr?1:0))/5*100,
+    ((C.ora.idleTime>0?1:0)+(C.ora.sqlnetExpire?1:0)+(C.ora.sessPerUser>0?1:0)+(C.ora.drcp?1:0)+(C.ora.resMgr?1:0))>=3?'green':'yellow'
+  )}</td>
+</tr>
+`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  EVENT LOG
+// ═══════════════════════════════════════════════════════
+function evlog(level, msg) {
+  const log = document.getElementById('evLog');
+  const t = Math.floor(S.t);
+  const cls = level === 'CRIT' ? 'ec' : level === 'WARN' ? 'ew' : 'ei';
+  const icon = { INFO: 'ℹ', WARN: '▲', CRIT: '✖' }[level];
+  log.innerHTML += `<span class="${cls}">[${String(t).padStart(4)}s] ${icon} ${msg}</span><br>`;
+  log.scrollTop = log.scrollHeight;
+  // Trim
+  const spans = log.querySelectorAll('span');
+  if (spans.length > 120) spans[0].remove();
+}
+
+// ═══════════════════════════════════════════════════════
+//  ARCHITECTURE DIAGRAM — Canvas
+// ═══════════════════════════════════════════════════════
+const archCanvas = document.getElementById('archCanvas');
+const AX = archCanvas.getContext('2d');
+
+// Node definitions (x,y in 0-1 relative coords)
+const NODES = {
+  app:  { lbl: ['App','Android'],  x:0.045, y:0.50, w:0.072, h:0.36, icon:'📱' },
+  rad:  { lbl: ['Radware','WAF'],  x:0.125, y:0.50, w:0.064, h:0.28, icon:'🛡' },
+  fw:   { lbl: ['Firewall','FW'],  x:0.205, y:0.50, w:0.064, h:0.28, icon:'🔒' },
+  dock: { lbl: ['Docker','GW'],    x:0.284, y:0.50, w:0.064, h:0.28, icon:'🐳' },
+  f5:   { lbl: ['F5','LB'],        x:0.365, y:0.50, w:0.070, h:0.36, icon:'⚖' },
+  wl0:  { lbl: ['WLogic','N1'],    x:0.460, y:0.22, w:0.074, h:0.25, icon:'🖥' },
+  wl1:  { lbl: ['WLogic','N2'],    x:0.460, y:0.50, w:0.074, h:0.25, icon:'🖥' },
+  wl2:  { lbl: ['WLogic','N3'],    x:0.460, y:0.78, w:0.074, h:0.25, icon:'🖥' },
+  scan: { lbl: ['Scan','Fonacot'], x:0.565, y:0.50, w:0.078, h:0.36, icon:'🔀' },
+  db0:  { lbl: ['Oracle','N1'],    x:0.660, y:0.33, w:0.070, h:0.26, icon:'🗄' },
+  db1:  { lbl: ['Oracle','N2'],    x:0.660, y:0.67, w:0.070, h:0.26, icon:'🗄' },
+};
+
+// Packet routes
+const ROUTES = [
+  ['app','rad'],['rad','fw'],['fw','dock'],['dock','f5'],
+  ['f5','wl0'],['f5','wl1'],['f5','wl2'],
+  ['wl0','scan'],['wl1','scan'],['wl2','scan'],
+  ['scan','db0'],['scan','db1'],
+];
+
+let packets = [];
+let pktId = 0;
+
+function nr(key, W, H) { // node rect
+  const n = NODES[key];
+  const nw = n.w * W, nh = n.h * H;
+  return { x: n.x*W - nw/2, y: n.y*H - nh/2, w: nw, h: nh, cx: n.x*W, cy: n.y*H };
+}
+
+function nodeHealth(key) {
+  switch(key) {
+    case 'app':  return S.appBlocked > 2 ? 'yellow' : 'green';
+    case 'rad':
+    case 'fw':
+    case 'dock': return S.appRate > 450 ? 'yellow' : 'green';
+    case 'f5':   return S.f5TcpNew > 300 ? 'yellow' : 'green';
+    case 'wl0':  return poolLvl(0);
+    case 'wl1':  return poolLvl(1);
+    case 'wl2':  return poolLvl(2);
+    case 'scan': return S.scanQPS > 1200 ? 'red' : S.scanQPS > 600 ? 'yellow' : 'green';
+    case 'db0':
+    case 'db1':  return S.dbConn > 2700 ? 'red' : S.dbConn > 1400 ? 'yellow' : 'green';
+  }
+  return 'green';
+}
+function poolLvl(i) {
+  const p = S.wlActive[i] / wlAppMovilCap();
+  return p > 0.85 ? 'red' : p > 0.60 ? 'yellow' : 'green';
+}
+const HC = { green:'#3fb950', yellow:'#d29922', red:'#f85149' };
+
+function resizeArch() {
+  const wrap = document.getElementById('archWrap');
+  archCanvas.width  = wrap.clientWidth;
+  archCanvas.height = wrap.clientHeight;
+}
+
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.arcTo(x+w,y,x+w,y+r,r); ctx.lineTo(x+w,y+h-r);
+  ctx.arcTo(x+w,y+h,x+w-r,y+h,r); ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,x,y+h-r,r); ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+}
+
+function drawArch(ts) {
+  const W = archCanvas.width, H = archCanvas.height;
+  const ctx = AX;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#161b22'; ctx.fillRect(0,0,W,H);
+
+  // Draw route lines
+  ROUTES.forEach(([a,b]) => {
+    const fa = nr(a,W,H), fb = nr(b,W,H);
+    ctx.beginPath(); ctx.moveTo(fa.cx,fa.cy); ctx.lineTo(fb.cx,fb.cy);
+    ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // "NEW TCP" label on F5→WL segments when no keep-alive
+    if (a === 'f5' && !C.ka) {
+      const mx = (fa.cx+fb.cx)/2, my = (fa.cy+fb.cy)/2;
+      ctx.fillStyle = '#9e6a03'; ctx.font = '8px Arial'; ctx.textAlign = 'center';
+      ctx.fillText('NEW TCP', mx, my - 5);
+    }
+    // "CB OPEN" barrier between WL and ScanFonacot
+    if ((a==='wl0'||a==='wl1'||a==='wl2') && b==='scan' && S.cbOpen) {
+      const mx = (fa.cx+fb.cx)/2, my = (fa.cy+fb.cy)/2;
+      ctx.fillStyle = '#f85149'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center';
+      ctx.fillText('✖ CB', mx, my);
+    }
+  });
+
+  // Draw packets
+  packets.forEach(p => drawPkt(ctx, p, W, H));
+
+  // Draw nodes
+  Object.keys(NODES).forEach(k => drawNode(ctx, k, W, H, ts));
+
+  // Legend
+  drawLegend(ctx, W, H);
+}
+
+function drawNode(ctx, key, W, H, ts) {
+  const r = nr(key, W, H);
+  const h = nodeHealth(key);
+  const hc = HC[h];
+
+  // Pulsating effect for saturated DB
+  let alpha = 1;
+  if ((key==='db0'||key==='db1') && S.dbSat) {
+    alpha = 0.55 + 0.45 * Math.abs(Math.sin(ts / 280));
+  }
+  ctx.globalAlpha = alpha;
+
+  // Box
+  rr(ctx, r.x, r.y, r.w, r.h, 6);
+  ctx.fillStyle = '#1c2431'; ctx.fill();
+  ctx.strokeStyle = hc; ctx.lineWidth = h==='red' ? 2.5 : 1.5; ctx.stroke();
+
+  // Health dot
+  ctx.fillStyle = hc;
+  ctx.beginPath(); ctx.arc(r.x+r.w-6, r.y+6, 3.5, 0, Math.PI*2); ctx.fill();
+
+  // Labels — font scales with canvas height, capped to not overflow node boxes
+  const fs1 = Math.max(8,  Math.min(11, Math.round(H * 0.026)));
+  const fs2 = Math.max(7,  Math.min(10, Math.round(H * 0.022)));
+  const lnH = fs1 + 3;
+  ctx.fillStyle = '#e6edf3'; ctx.textAlign = 'center';
+  const n = NODES[key];
+  const topY = r.cy - (n.lbl.length > 1 ? lnH * 0.5 : 3);
+  n.lbl.forEach((line, i) => {
+    ctx.font = i===0 ? `bold ${fs1}px Arial` : `${fs2}px Arial`;
+    ctx.fillStyle = i===0 ? '#e6edf3' : '#8b949e';
+    ctx.fillText(line, r.cx, topY + i * lnH);
+  });
+
+  // JDBC pool fill bar (WebLogic nodes)
+  if (key==='wl0'||key==='wl1'||key==='wl2') {
+    const idx = +key.slice(2);
+    const pct = Math.min(1, S.wlActive[idx] / wlAppMovilCap());
+    const zPct = Math.min(pct, S.zombie / Math.max(1, wlTotalCap()));
+    const bx = r.x+4, by = r.y+r.h-11, bw = r.w-8, bh = 5;
+
+    ctx.fillStyle = '#21262d'; ctx.fillRect(bx,by,bw,bh);
+    // Active connections (blue→yellow→red)
+    const bc = pct>0.85?'#f85149':pct>0.6?'#d29922':'#3fb950';
+    ctx.fillStyle = bc; ctx.fillRect(bx,by,bw*pct,bh);
+    // Zombie overlay (gray tint on top)
+    if (zPct > 0.01) {
+      ctx.fillStyle = 'rgba(125,133,144,0.55)';
+      ctx.fillRect(bx,by,bw*zPct,bh);
+    }
+    // Pct label
+    const pctFs = Math.max(7, Math.min(10, Math.round(H * 0.022)));
+    ctx.fillStyle = '#7d8590'; ctx.font = `${pctFs}px Arial`; ctx.textAlign = 'center';
+    ctx.fillText(Math.floor(pct*100)+'%', r.cx, by-1);
+  }
+
+  // DB connection count + Oracle parameter indicators
+  if (key==='db0'||key==='db1') {
+    const share = Math.floor(S.dbConn/2);
+    ctx.fillStyle = h==='red'?'#f85149':'#7d8590';
+    const dbFs = Math.max(7, Math.min(10, Math.round(H * 0.024)));
+    ctx.font = `${dbFs}px monospace`; ctx.textAlign = 'center';
+    ctx.fillText(share+' conn', r.cx, r.y+r.h-3);
+
+    // Oracle active parameter badges (small pill above node)
+    const badges = [];
+    if (C.ora.idleTime > 0)     badges.push({ lbl:'IT=' + C.ora.idleTime + 'm', c:'#3fb950' });
+    if (C.ora.sqlnetExpire)     badges.push({ lbl:'SQLNET', c:'#58a6ff' });
+    if (C.ora.sessPerUser > 0)  badges.push({ lbl:'SPU=' + C.ora.sessPerUser, c:'#bc8cff' });
+    if (C.ora.drcp)             badges.push({ lbl:'DRCP=' + C.ora.drcpSize, c:'#e3b341' });
+    if (C.ora.resMgr)           badges.push({ lbl:'RM=' + C.ora.resMgrLimit, c:'#f97316' });
+
+    if (badges.length > 0 && key === 'db0') {  // only draw on db0 to avoid clutter
+      ctx.font = 'bold 7px Arial'; ctx.textAlign = 'center';
+      const bW = 36, bH = 9, gap = 3;
+      const totalW = badges.length * (bW + gap) - gap;
+      let bx = r.cx - totalW/2;
+      badges.forEach(b => {
+        ctx.fillStyle = b.c + '33'; // semi-transparent bg
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(bx, r.y - 13, bW, bH, 3) :
+          ctx.rect(bx, r.y - 13, bW, bH);
+        ctx.fill();
+        ctx.strokeStyle = b.c; ctx.lineWidth = 0.8; ctx.stroke();
+        ctx.fillStyle = b.c;
+        ctx.fillText(b.lbl, bx + bW/2, r.y - 6);
+        bx += bW + gap;
+      });
+    }
+  }
+
+  // Circuit breaker indicator on scan node
+  if (key==='scan' && S.cbOpen) {
+    ctx.fillStyle = '#f85149'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('CB ABIERTO', r.cx, r.y-5);
+  }
+
+  // Rate limit indicator on F5 node
+  if (key==='f5' && C.rl) {
+    ctx.fillStyle = '#58a6ff'; ctx.font = '8px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('RL ✓', r.cx, r.y-4);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function drawLegend(ctx, W, H) {
+  const items = [
+    { c:'#3fb950', l:'Normal (<60%)' },
+    { c:'#d29922', l:'Alerta (60-85%)' },
+    { c:'#f85149', l:'Crítico (>85%)' },
+    { c:'#58a6ff', l:'Request' },
+    { c:'#e3b341', l:'Fan-out' },
+    { c:'rgba(125,133,144,0.7)', l:'Zombie' },
+  ];
+  const fs = Math.max(8, Math.min(11, Math.round(H * 0.026)));
+  const rowH = fs + 4;
+  let lx = W - 118, ly = rowH;
+  ctx.font = `${fs}px Arial`;
+  items.forEach(it => {
+    ctx.fillStyle = it.c; ctx.fillRect(lx, ly - fs + 1, 9, fs - 1);
+    ctx.fillStyle = '#7d8590'; ctx.textAlign = 'left';
+    ctx.fillText(it.l, lx + 12, ly);
+    ly += rowH;
+  });
+}
+
+// ─── Packet system ───
+function spawnPackets() {
+  if (!S.running) return;
+  const n = Math.min(12, Math.max(1, Math.floor(S.appRate / 20)));
+  for (let i = 0; i < n; i++) {
+    const wl = 'wl' + (i % 3);
+    const db = Math.random()<0.5 ? 'db0' : 'db1';
+    const path = ['app','rad','fw','dock','f5',wl,'scan',db];
+    const frozen = C.gps && Math.random() < 0.28;
+    packets.push({
+      id: pktId++,
+      path, seg: 0, prog: 0,
+      spd: 0.012 + Math.random()*0.006,
+      type: 'request',
+      frozen, frozenSec: frozen ? (6+Math.random()*10) : 0,
+      frozenStart: frozen ? performance.now()/1000 : 0,
+      fanDone: false,
+      alpha: 1,
+    });
+  }
+  if (packets.length > 250) packets.splice(0, packets.length - 250);
+}
+
+function advancePackets() {
+  const nowSec = performance.now()/1000;
+  packets = packets.filter(p => p.alpha > 0.04);
+  packets.forEach(p => {
+    if (p.seg >= p.path.length-1) { p.alpha -= 0.04; return; }
+
+    // GPS freeze at app node
+    if (p.frozen && p.seg === 0) {
+      if (nowSec - p.frozenStart < p.frozenSec) return;
+      p.frozen = false;
+    }
+
+    // Slow near saturated DB
+    let spd = p.spd;
+    if (p.seg >= p.path.length-2 && S.dbSat) spd *= 0.15;
+
+    p.prog += spd;
+    if (p.prog >= 1) {
+      p.prog = 0; p.seg++;
+      // Fan-out at ScanFonacot
+      const cur = p.path[p.seg];
+      if (cur === 'scan' && !p.fanDone && C.fanout > 1) {
+        p.fanDone = true;
+        const extras = Math.min(C.fanout-1, 5);
+        for (let f = 0; f < extras; f++) {
+          const db = Math.random()<0.5 ? 'db0' : 'db1';
+          packets.push({
+            id: pktId++, path:['scan',db], seg:0,
+            prog: Math.random()*0.25, spd: p.spd*(0.7+Math.random()*0.5),
+            type:'fanout', frozen:false, frozenSec:0, frozenStart:0,
+            fanDone:true, alpha:0.65,
+          });
+        }
+      }
+    }
+  });
+}
+
+function drawPkt(ctx, p, W, H) {
+  if (p.seg >= p.path.length-1) return;
+  const fa = nr(p.path[p.seg],W,H), fb = nr(p.path[p.seg+1],W,H);
+  const x = fa.cx + (fb.cx-fa.cx)*p.prog;
+  const y = fa.cy + (fb.cy-fa.cy)*p.prog;
+  ctx.globalAlpha = p.alpha;
+
+  if (p.frozen) {
+    ctx.fillStyle = '#7d8590';
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d29922'; ctx.font='8px Arial'; ctx.textAlign='center';
+    ctx.fillText('GPS',x,y-7);
+  } else {
+    const colors = { request:'#58a6ff', fanout:'#e3b341' };
+    ctx.fillStyle = colors[p.type] || '#58a6ff';
+    ctx.shadowBlur = 6; ctx.shadowColor = ctx.fillStyle;
+    ctx.beginPath(); ctx.arc(x,y, p.type==='fanout'?3:4, 0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHARTS — pure Canvas
+// ═══════════════════════════════════════════════════════
+function fmtVal(v, unit) {
+  const d = v >= 1000 ? (v/1000).toFixed(1)+'k' : Math.floor(v);
+  return d + (unit||'');
+}
+
+function chartLine(id, data, maxV, lineColor, thresh, threshColor, unit) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  // Use offsetWidth/Height — works with any layout (flex, grid, static)
+  const W = el.offsetWidth  || 400;
+  const H = el.offsetHeight || 190;
+  if (W < 10 || H < 10) return;  // not yet laid out
+  el.width = W; el.height = H;
+  const ctx = el.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  // Background with subtle gradient
+  const bgGr = ctx.createLinearGradient(0,0,0,H);
+  bgGr.addColorStop(0, '#111922'); bgGr.addColorStop(1, '#0d1117');
+  ctx.fillStyle = bgGr; ctx.fillRect(0,0,W,H);
+
+  const P = { l:46, r:10, t:8, b:22 };
+  const gW = W-P.l-P.r, gH = H-P.t-P.b;
+
+  // Horizontal grid lines + Y labels
+  const steps = 5;
+  for (let i=0; i<=steps; i++) {
+    const gy = P.t + gH - i/steps*gH;
+    const v  = Math.floor(maxV * i/steps);
+    // grid line
+    ctx.strokeStyle = i===0 ? '#2a3441' : '#1e2a38';
+    ctx.lineWidth = i===0 ? 1.5 : 1;
+    ctx.beginPath(); ctx.moveTo(P.l,gy); ctx.lineTo(P.l+gW,gy); ctx.stroke();
+    // Y label
+    ctx.fillStyle = '#4a5a6a'; ctx.font = '9px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(v>=1000?(v/1000).toFixed(1)+'k':v, P.l-4, gy+3);
+  }
+
+  // X time labels
+  ctx.fillStyle = '#4a5a6a'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
+  for (let i=0; i<=4; i++) {
+    const gx = P.l + i/4 * gW;
+    ctx.fillText('-' + Math.floor((1-i/4)*HIST*TICK_SIM) + 's', gx, P.t+gH+14);
+  }
+
+  // Threshold dashed line
+  if (thresh != null) {
+    const ty = P.t + gH - (thresh/maxV)*gH;
+    ctx.strokeStyle = threshColor||'#f85149';
+    ctx.lineWidth = 1.2; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(P.l,ty); ctx.lineTo(P.l+gW,ty); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = threshColor||'#f85149'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'left';
+    const tv = thresh>=1000?(thresh/1000).toFixed(1)+'k':thresh;
+    ctx.fillText('⚠ ' + tv, P.l+4, ty-3);
+  }
+
+  if (!data || data.length < 2) {
+    ctx.fillStyle = '#3a4a5a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('Iniciando simulación…', W/2, H/2); return;
+  }
+
+  // Filled area under line
+  const pts = data.map((v,i) => ({
+    x: P.l + i/(HIST-1)*gW,
+    y: P.t + gH - Math.min(v,maxV)/maxV * gH
+  }));
+  ctx.beginPath();
+  pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+  ctx.lineTo(pts[pts.length-1].x, P.t+gH);
+  ctx.lineTo(P.l, P.t+gH); ctx.closePath();
+  const toRgba = (h,a) => {
+    const r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,5),16), b=parseInt(h.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+  };
+  const gr = ctx.createLinearGradient(0,P.t,0,P.t+gH);
+  gr.addColorStop(0, toRgba(lineColor, 0.35));
+  gr.addColorStop(0.6, toRgba(lineColor, 0.08));
+  gr.addColorStop(1, toRgba(lineColor, 0.01));
+  ctx.fillStyle = gr; ctx.fill();
+
+  // Main line with glow
+  ctx.save();
+  ctx.shadowBlur = 8; ctx.shadowColor = lineColor;
+  ctx.beginPath();
+  pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+  ctx.strokeStyle = lineColor; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.restore();
+
+  // Dot at latest point
+  const lp = pts[pts.length-1];
+  ctx.beginPath(); ctx.arc(lp.x, lp.y, 4, 0, Math.PI*2);
+  ctx.fillStyle = lineColor; ctx.fill();
+  ctx.beginPath(); ctx.arc(lp.x, lp.y, 4, 0, Math.PI*2);
+  ctx.strokeStyle = '#0d1117'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Current value — large display in top-left
+  const cur = data[data.length-1];
+  ctx.fillStyle = lineColor; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(fmtVal(cur, unit), P.l+6, P.t+22);
+}
+
+function chartMultiLine(id, wl0d, wl1d, wl2d, zombied) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const W = el.offsetWidth  || 400;
+  const H = el.offsetHeight || 190;
+  if (W < 10 || H < 10) return;
+  el.width=W; el.height=H;
+  const ctx=el.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  // Dynamic scale: max of total cap or current peak
+  const totalCap = wlTotalCap();
+  const appCap   = wlAppMovilCap();
+  const allVals  = [...(wl0d||[]), ...(wl1d||[]), ...(wl2d||[]), ...(zombied||[])];
+  const dataMax  = allVals.length ? Math.max(...allVals) : 0;
+  const maxV     = Math.max(appCap, dataMax, 50);
+
+  // Background
+  const bgGr = ctx.createLinearGradient(0,0,0,H);
+  bgGr.addColorStop(0,'#111922'); bgGr.addColorStop(1,'#0d1117');
+  ctx.fillStyle=bgGr; ctx.fillRect(0,0,W,H);
+
+  const P={l:46,r:10,t:10,b:36};
+  const gW=W-P.l-P.r, gH=H-P.t-P.b;
+
+  // Capacity reference line (appCap)
+  const capY = P.t + gH - (appCap / maxV) * gH;
+  ctx.save();
+  ctx.setLineDash([4,4]);
+  ctx.strokeStyle='rgba(248,81,73,0.35)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(P.l, capY); ctx.lineTo(P.l+gW, capY); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle='rgba(248,81,73,0.55)'; ctx.font='8px monospace'; ctx.textAlign='left';
+  ctx.fillText('cap', P.l+3, capY-2);
+
+  // Grid lines + Y labels (absolute conn)
+  const steps=4;
+  for(let i=0;i<=steps;i++){
+    const gy=P.t+gH-i/steps*gH;
+    ctx.strokeStyle=i===0?'#2a3441':'#1e2a38'; ctx.lineWidth=i===0?1.5:1;
+    ctx.beginPath(); ctx.moveTo(P.l,gy); ctx.lineTo(P.l+gW,gy); ctx.stroke();
+    ctx.fillStyle='#4a5a6a'; ctx.font='9px monospace'; ctx.textAlign='right';
+    const yVal = Math.floor(maxV*i/steps);
+    ctx.fillText(yVal >= 1000 ? (yVal/1000).toFixed(1)+'k' : yVal, P.l-3, gy+3);
+  }
+
+  // X labels
+  ctx.fillStyle='#4a5a6a'; ctx.font='9px Arial'; ctx.textAlign='center';
+  for(let i=0;i<=4;i++){
+    ctx.fillText('-'+Math.floor((1-i/4)*HIST*TICK_SIM)+'s', P.l+i/4*gW, P.t+gH+13);
+  }
+
+  const toRgba=(hx,a)=>{const r=parseInt(hx.slice(1,3),16),g=parseInt(hx.slice(3,5),16),b=parseInt(hx.slice(5,7),16);return `rgba(${r},${g},${b},${a})`;};
+
+  // Draw zombie area first (behind active lines)
+  if (zombied && zombied.length >= 2) {
+    const pts = zombied.map((v,i) => ({ x: P.l+i/(HIST-1)*gW, y: P.t+gH - Math.min(v,maxV)/maxV*gH }));
+    ctx.beginPath();
+    pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.lineTo(pts[pts.length-1].x, P.t+gH); ctx.lineTo(P.l, P.t+gH); ctx.closePath();
+    ctx.fillStyle = 'rgba(125,133,144,0.22)'; ctx.fill();
+    ctx.beginPath();
+    pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.strokeStyle = 'rgba(125,133,144,0.55)'; ctx.lineWidth=1.5; ctx.setLineDash([3,3]); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  const datasets=[wl0d,wl1d,wl2d];
+  const colors=['#58a6ff','#3fb950','#e3b341'];
+  const lineW=[2.5,2,2];
+  const labels=['WL-1','WL-2','WL-3'];
+
+  datasets.forEach((d,di)=>{
+    if(!d||d.length<2) return;
+    const pts=d.map((v,i)=>({ x:P.l+i/(HIST-1)*gW, y:P.t+gH-Math.min(v,maxV)/maxV*gH }));
+    // Filled area
+    ctx.beginPath();
+    pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+    ctx.lineTo(pts[pts.length-1].x,P.t+gH); ctx.lineTo(P.l,P.t+gH); ctx.closePath();
+    const fg=ctx.createLinearGradient(0,P.t,0,P.t+gH);
+    fg.addColorStop(0,toRgba(colors[di],0.20)); fg.addColorStop(1,toRgba(colors[di],0.01));
+    ctx.fillStyle=fg; ctx.fill();
+    // Line with glow
+    ctx.save();
+    ctx.shadowBlur=5; ctx.shadowColor=colors[di];
+    ctx.beginPath();
+    pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+    ctx.strokeStyle=colors[di]; ctx.lineWidth=lineW[di]; ctx.stroke();
+    ctx.restore();
+    // End dot
+    const lp=pts[pts.length-1];
+    ctx.beginPath(); ctx.arc(lp.x,lp.y,3,0,Math.PI*2);
+    ctx.fillStyle=colors[di]; ctx.fill();
+  });
+
+  // Legend bar — 3 WL nodes + zombie
+  const cur = datasets.map(d=>d&&d.length?Math.floor(d[d.length-1]):0);
+  const curZ = zombied&&zombied.length ? Math.floor(zombied[zombied.length-1]) : 0;
+  const legendItems = [
+    ...labels.map((lbl,di) => ({ lbl, val: cur[di], color: colors[di] })),
+    { lbl: 'Zombie', val: curZ, color: '#7d8590' },
+  ];
+  const lColW = gW / 4;
+  legendItems.forEach((it, di) => {
+    const lx = P.l + di * lColW;
+    const valColor = it.val > appCap*0.85 ? '#f85149' : it.val > appCap*0.6 ? '#d29922' : it.color;
+    ctx.fillStyle=it.color; ctx.fillRect(lx, H-20, 12, 5);
+    ctx.fillStyle='#7d8590'; ctx.font='9px Arial'; ctx.textAlign='left';
+    ctx.fillText(it.lbl, lx+15, H-16);
+    ctx.fillStyle=valColor; ctx.font='bold 10px monospace'; ctx.textAlign='left';
+    ctx.fillText(it.val, lx+15, H-5);
+  });
+}
+
+function renderCharts() {
+  const dbC = S.dbConn>2700?'#f85149':S.dbConn>1400?'#d29922':'#3fb950';
+  const ltC = S.dbQT>3000?'#f85149':S.dbQT>800?'#d29922':'#3fb950';
+  const rjC = S.rejected>50?'#f85149':S.rejected>10?'#d29922':'#3fb950';
+
+  // Update live titles
+  const dbIcon = S.dbConn>2700?'🔴':S.dbConn>1400?'🟡':'🟢';
+  const ltIcon = S.dbQT>3000?'🔴':S.dbQT>800?'🟡':'🟢';
+  const rjIcon = S.rejected>50?'🔴':S.rejected>10?'🟡':'🟢';
+  const el1 = document.getElementById('titleDbConn');
+  const el2 = document.getElementById('titleLatency');
+  const el4 = document.getElementById('titleRejected');
+  if (el1) el1.textContent = dbIcon + ' Conexiones Oracle DB — ' + fmtVal(S.dbConn,' conn') + ' / 3500';
+  if (el2) el2.textContent = ltIcon + ' Latencia Query DB — ' + fmtVal(S.dbQT,'ms');
+  if (el4) el4.textContent = rjIcon + ' Requests Rechazados — ' + fmtVal(S.rejected,'/s');
+
+  chartLine('cDbConn',  S.h.dbConn,  3500, dbC, 3000, '#f85149', ' conn');
+  chartLine('cLatency', S.h.latency, 10000,ltC, null, null,      'ms');
+  chartMultiLine('cPool', S.h.wl0, S.h.wl1, S.h.wl2, S.h.zombie);
+  chartLine('cRejected',S.h.rej,     300,  rjC, null, null,      '/s');
+}
+
+// ═══════════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ═══════════════════════════════════════════════════════
+let lastResize = 0;
+function loop(ts) {
+  // Throttle resize
+  if (ts - lastResize > 500) {
+    resizeArch();
+    lastResize = ts;
+  }
+  advancePackets();
+  drawArch(ts);
+  renderCharts();
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('resize', resizeArch);
+resizeArch();
+updateStatus();
+applyPreset('incident');  // default to incident config
+updatePresetBadge('incident');
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TARTARUS — IR Deception Platform</title>
+    <link rel="stylesheet" href="css/tartarus.css">
+</head>
+<body>
+    <header id="hdr">
+        <div class="hdr-left">
+            <h1>TARTARUS</h1>
+            <span class="hdr-sub">IR Deception Platform</span>
+        </div>
+        <div class="hdr-right">
+            <span id="statusBadge" class="badge badge-yellow">Connecting...</span>
+            <span class="hdr-version">v0.1.0</span>
+        </div>
+    </header>
+
+    <main id="main">
+        <div class="card health-card">
+            <div class="card-title">Infrastructure Health</div>
+            <div id="healthChecks" class="health-grid">
+                <div class="check-row">
+                    <span class="check-name">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card info-card">
+            <div class="card-title">Phase 0 — Stack Verification</div>
+            <div class="info-list">
+                <div class="info-row">
+                    <span class="info-label">Beelzebub</span>
+                    <span class="info-value">SSH :2222 | HTTP :8880</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Engine</span>
+                    <span class="info-value">FastAPI :9000</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">PostgreSQL</span>
+                    <span class="info-value">:5432</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Redis</span>
+                    <span class="info-value">:6379</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">RabbitMQ</span>
+                    <span class="info-value">:5672 | Mgmt :15672</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

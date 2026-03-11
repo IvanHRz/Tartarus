@@ -1,0 +1,128 @@
+/* TARTARUS — Design System (Phase 0)
+   Color palette from ejemplo.html reference */
+
+:root {
+    --bg:     #0d1117;
+    --bg2:    #161b22;
+    --bg3:    #1c2431;
+    --border: #30363d;
+    --text:   #e6edf3;
+    --muted:  #7d8590;
+    --blue:   #58a6ff;
+    --green:  #3fb950;
+    --yellow: #d29922;
+    --red:    #f85149;
+    --orange: #e3b341;
+    --purple: #bc8cff;
+}
+
+/* ── Reset ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* ── Header ────────────────────────────────── */
+#hdr {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.hdr-left { display: flex; align-items: baseline; gap: 12px; }
+#hdr h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--red);
+    letter-spacing: 2px;
+}
+.hdr-sub {
+    font-size: 12px;
+    color: var(--muted);
+}
+.hdr-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.hdr-version {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* ── Badges ────────────────────────────────── */
+.badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.badge-green  { background: rgba(63, 185, 80, 0.2);  color: var(--green);  border: 1px solid rgba(63, 185, 80, 0.3); }
+.badge-yellow { background: rgba(210, 153, 34, 0.2);  color: var(--yellow); border: 1px solid rgba(210, 153, 34, 0.3); }
+.badge-red    { background: rgba(248, 81, 73, 0.2);   color: var(--red);    border: 1px solid rgba(248, 81, 73, 0.3); }
+
+/* ── Main ──────────────────────────────────── */
+#main {
+    padding: 24px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* ── Cards ─────────────────────────────────── */
+.card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 320px;
+    flex: 1;
+    max-width: 480px;
+}
+.card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+}
+
+/* ── Health checks ─────────────────────────── */
+.health-grid { display: flex; flex-direction: column; }
+.check-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+.check-row:last-child { border-bottom: none; }
+.check-name { color: var(--text); font-weight: 500; }
+.check-status { font-weight: 600; font-family: 'SF Mono', monospace; font-size: 13px; }
+.check-ok   { color: var(--green); }
+.check-fail { color: var(--red); }
+
+/* ── Info list ─────────────────────────────── */
+.info-list { display: flex; flex-direction: column; }
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--muted); }
+.info-value { color: var(--text); font-family: 'SF Mono', monospace; font-size: 12px; }

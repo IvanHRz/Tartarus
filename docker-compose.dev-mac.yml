@@ -1,0 +1,39 @@
+# Dev overrides for Mac M4 — remapped ports to avoid conflicts
+services:
+  beelzebub:
+    ports:
+      - "${DEV_SSH_PORT:-2222}:22"
+      - "${DEV_HTTP_PORT:-8880}:80"
+      - "${DEV_HTTPS_PORT:-8443}:443"
+      - "2112:2112"
+
+  engine:
+    ports:
+      - "${DEV_ENGINE_PORT:-9000}:8000"
+    volumes:
+      - ./engine:/app:cached
+    environment:
+      - ENGINE_LOG_LEVEL=debug
+
+  ui:
+    ports:
+      - "${DEV_UI_PORT:-8888}:80"
+    volumes:
+      - ./ui/src:/usr/share/nginx/html:ro
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  broker:
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  adminer:
+    ports:
+      - "${DEV_ADMINER_PORT:-9080}:8080"

@@ -1,0 +1,33 @@
+# Production overrides — real ports, restart policies, no adminer
+services:
+  beelzebub:
+    restart: always
+    ports:
+      - "22:22"
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+      - "3000:3000"
+
+  engine:
+    restart: always
+    ports:
+      - "8000:8000"
+
+  ui:
+    restart: always
+    ports:
+      - "8888:80"
+
+  postgres:
+    restart: always
+
+  redis:
+    restart: always
+
+  broker:
+    restart: always
+
+  adminer:
+    profiles:
+      - never
