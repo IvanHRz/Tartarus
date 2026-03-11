@@ -40,6 +40,9 @@ rabbit_data/
 logs/
 *.log
 
+# Beelzebub service configs (contain API keys)
+beelzebub/configurations/services/
+
 # Cloned sites (generated)
 identities/cloned/
 

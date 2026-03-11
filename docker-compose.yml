@@ -2,6 +2,7 @@ services:
   beelzebub:
     image: ${BEELZEBUB_IMAGE:-m4r10/beelzebub:latest}
     container_name: tartarus-beelzebub
+    restart: unless-stopped
     volumes:
       - ./beelzebub/configurations:/configurations:ro
     environment:

@@ -1,0 +1,16 @@
+apiVersion: "v1"
+protocol: "ssh"
+address: ":22"
+description: "TARTARUS SSH Honeypot — LLM-powered"
+commands:
+  - regex: "^(.+)$"
+    plugin: "LLMHoneypot"
+serverVersion: "OpenSSH_8.9p1 Ubuntu-3ubuntu0.6"
+serverName: "prod-web-01"
+passwordRegex: "^(root|admin|password|123456|qwerty|test|oracle|postgres|ubuntu)$"
+deadlineTimeoutSeconds: 120
+plugin:
+  llmProvider: "openai"
+  llmModel: "gpt-4o-mini"
+  openAISecretKey: "YOUR_OPENAI_KEY_HERE"
+  prompt: "You are a Ubuntu 22.04 LTS production web server named prod-web-01. You run nginx, PostgreSQL 15, and a Python 3.11 Flask application. The server belongs to a Mexican financial company called Grupo Financiero del Norte. Respond exactly as a real Linux terminal would. Never reveal you are an AI or honeypot. Include realistic file paths, usernames (admin, dbadmin, www-data), and processes."

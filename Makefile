@@ -10,6 +10,8 @@ setup:
 	@echo "=== TARTARUS Setup ==="
 	@test -f .env || (cp .env.example .env && echo "  .env created from .env.example")
 	@echo "  .env ready"
+	@test -d beelzebub/configurations/services || (cp -r beelzebub/configurations/services.example beelzebub/configurations/services && echo "  services/ created from services.example/ — edit YAML files to add your API keys")
+	@echo "  Beelzebub services ready"
 	@which pre-commit >/dev/null 2>&1 && pre-commit install || echo "  pre-commit not found (pip install pre-commit)"
 	@docker compose version 2>/dev/null || echo "  WARNING: docker compose not found"
 	@echo "=== Setup complete ==="
