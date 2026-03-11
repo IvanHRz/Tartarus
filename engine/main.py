@@ -259,7 +259,8 @@ async def get_hosts(
     async with app.state.pg_pool.acquire() as conn:
         rows = await conn.fetch(
             f"""SELECT id, ip, hostname, mac_address, os_fingerprint,
-                       host_type, open_ports, is_honeypot, first_seen, last_seen
+                       host_type, open_ports, is_honeypot, first_seen, last_seen,
+                       mac_vendor, os_accuracy, scan_metadata
                 FROM hosts {where}
                 ORDER BY last_seen DESC
                 LIMIT ${idx}""",
@@ -268,18 +269,22 @@ async def get_hosts(
 
     hosts = []
     for r in rows:
-        hosts.append({
+        host = {
             "id": str(r["id"]),
             "ip": str(r["ip"]),
             "hostname": r["hostname"],
             "mac_address": r["mac_address"],
+            "mac_vendor": r.get("mac_vendor"),
             "os_fingerprint": r["os_fingerprint"],
+            "os_accuracy": r.get("os_accuracy"),
             "host_type": r["host_type"],
             "open_ports": r["open_ports"],
+            "scan_metadata": r.get("scan_metadata"),
             "is_honeypot": r["is_honeypot"],
             "first_seen": r["first_seen"].isoformat(),
             "last_seen": r["last_seen"].isoformat(),
-        })
+        }
+        hosts.append(host)
 
     return {"total": len(hosts), "hosts": hosts}
 

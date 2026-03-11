@@ -41,9 +41,12 @@ CREATE TABLE IF NOT EXISTS hosts (
     ip              INET NOT NULL UNIQUE,
     hostname        VARCHAR(256),
     mac_address     VARCHAR(17),
-    os_fingerprint  VARCHAR(128),
+    mac_vendor      VARCHAR(128),
+    os_fingerprint  VARCHAR(256),
+    os_accuracy     SMALLINT,
     host_type       VARCHAR(32) DEFAULT 'unknown',
     open_ports      JSONB DEFAULT '[]',
+    scan_metadata   JSONB DEFAULT '{}',
     is_honeypot     BOOLEAN DEFAULT FALSE,
     first_seen      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen       TIMESTAMPTZ NOT NULL DEFAULT NOW()

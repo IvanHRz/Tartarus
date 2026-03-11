@@ -237,9 +237,10 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
-.proto-ssh  { background: rgba(248, 81, 73, 0.15); color: var(--red); }
-.proto-http { background: rgba(227, 179, 65, 0.15); color: var(--orange); }
-.proto-tcp  { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+.proto-ssh      { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+.proto-http     { background: rgba(227, 179, 65, 0.15); color: var(--orange); }
+.proto-tcp      { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+.proto-tcp-http { background: rgba(88, 166, 255, 0.15); color: var(--blue); }
 
 /* Command colors by protocol */
 .cmd-http { color: var(--orange); }
@@ -390,37 +391,102 @@ body {
     padding-top: 8px;
 }
 
-/* ── Hosts Table Columns ──────────────────── */
-.col-os {
-    font-size: 12px;
-    color: var(--muted);
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+/* ── Hosts Grid ───────────────────────────── */
+.hosts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+    padding: 0 24px 24px;
 }
-.col-ports {
+
+/* ── Host Card ────────────────────────────── */
+.host-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    transition: border-color 0.2s;
+}
+.host-card:hover { border-color: var(--muted); }
+
+.host-header {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
 }
-.col-mac {
+.host-ip {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--blue);
+}
+.host-hostname {
+    font-size: 12px;
     color: var(--muted);
 }
 
-/* ── Port Badges ──────────────────────────── */
-.port-badge {
+.host-meta {
+    margin-bottom: 10px;
+    font-size: 12px;
+}
+.host-meta-row {
+    padding: 2px 0;
+    color: var(--text);
+    line-height: 1.4;
+}
+.meta-label {
     display: inline-block;
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-size: 10px;
+    width: 36px;
+    color: var(--muted);
     font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.host-vendor {
+    color: var(--muted);
+    font-size: 11px;
+}
+.host-accuracy {
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* ── Port Rows (inside host card) ─────────── */
+.host-ports {
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+}
+.port-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 3px 0;
+    font-size: 12px;
+}
+.port-row.port-empty {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 11px;
+}
+.port-num {
     font-family: var(--mono);
-    background: rgba(88, 166, 255, 0.12);
+    font-weight: 600;
     color: var(--blue);
-    border: 1px solid rgba(88, 166, 255, 0.25);
+    min-width: 65px;
+}
+.port-svc {
+    color: var(--green);
+    font-weight: 600;
+    min-width: 70px;
+}
+.port-ver {
+    color: var(--muted);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 

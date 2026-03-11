@@ -33,25 +33,60 @@ SCAN_QUEUE = "scan_jobs"
 RESULT_QUEUE = "scan_results"
 
 
+async def _ensure_schema(pool) -> None:
+    """Add new columns if missing (migration for existing DBs)."""
+    migrations = [
+        "ALTER TABLE hosts ADD COLUMN IF NOT EXISTS mac_vendor VARCHAR(128)",
+        "ALTER TABLE hosts ADD COLUMN IF NOT EXISTS os_accuracy SMALLINT",
+        "ALTER TABLE hosts ADD COLUMN IF NOT EXISTS scan_metadata JSONB DEFAULT '{}'",
+    ]
+    async with pool.acquire() as conn:
+        for sql in migrations:
+            try:
+                await conn.execute(sql)
+            except Exception:
+                pass
+
+
 async def upsert_host(pool, host: dict) -> None:
-    """Insert or update a host in PostgreSQL."""
+    """Insert or update a host in PostgreSQL with enriched scan data."""
+    metadata = {}
+    for key in ("uptime_seconds", "last_boot", "distance", "state_reason"):
+        if host.get(key):
+            metadata[key] = host[key]
+
+    os_accuracy = None
+    if host.get("os_accuracy"):
+        try:
+            os_accuracy = int(host["os_accuracy"])
+        except (ValueError, TypeError):
+            pass
+
     async with pool.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO hosts (ip, hostname, mac_address, os_fingerprint, open_ports, last_seen)
-            VALUES ($1::inet, $2, $3, $4, $5::jsonb, NOW())
+            INSERT INTO hosts (ip, hostname, mac_address, mac_vendor,
+                               os_fingerprint, os_accuracy, open_ports,
+                               scan_metadata, last_seen)
+            VALUES ($1::inet, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, NOW())
             ON CONFLICT (ip) DO UPDATE SET
                 hostname = COALESCE(EXCLUDED.hostname, hosts.hostname),
                 mac_address = COALESCE(EXCLUDED.mac_address, hosts.mac_address),
+                mac_vendor = COALESCE(EXCLUDED.mac_vendor, hosts.mac_vendor),
                 os_fingerprint = COALESCE(EXCLUDED.os_fingerprint, hosts.os_fingerprint),
+                os_accuracy = COALESCE(EXCLUDED.os_accuracy, hosts.os_accuracy),
                 open_ports = EXCLUDED.open_ports,
+                scan_metadata = EXCLUDED.scan_metadata,
                 last_seen = NOW()
             """,
             host["ip"],
             host.get("hostname"),
             host.get("mac_address"),
+            host.get("mac_vendor"),
             host.get("os_fingerprint"),
+            os_accuracy,
             json.dumps(host.get("open_ports", [])),
+            json.dumps(metadata),
         )
 
 
@@ -98,6 +133,7 @@ async def process_scan_job(pool, redis_conn, job: dict) -> None:
 async def main() -> None:
     """Main loop: consume scan jobs from RabbitMQ."""
     pool = await asyncpg.create_pool(PG_DSN, min_size=1, max_size=3)
+    await _ensure_schema(pool)
     redis_conn = aioredis.from_url(REDIS_URL)
     await redis_conn.set("scan:status", "idle")
 

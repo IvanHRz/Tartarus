@@ -100,6 +100,12 @@ def _parse_event(body: bytes) -> dict | None:
         dest_port = raw.get("DestPort")
         body_data = raw.get("Body", "") or raw.get("Command", "")
         command = body_data[:200] if body_data else raw.get("Msg", "")
+        # Heuristic: TCP body containing HTTP request → mark as TCP/HTTP
+        _HTTP_METHODS = {"GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH"}
+        if body_data:
+            first_token = body_data.split(" ", 1)[0].split("/", 1)[0].upper()
+            if first_token in _HTTP_METHODS:
+                protocol = "TCP/HTTP"
     else:
         command = raw.get("Command") or raw.get("Msg") or ""
 

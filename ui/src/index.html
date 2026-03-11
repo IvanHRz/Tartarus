@@ -65,6 +65,7 @@
             <option value="SSH">SSH</option>
             <option value="HTTP">HTTP</option>
             <option value="TCP">TCP</option>
+            <option value="TCP/HTTP">TCP/HTTP</option>
         </select>
         <input id="filterIP" type="text" class="filter-input" placeholder="Source IP...">
         <button id="btnRefresh" class="btn btn-blue">Refresh</button>
@@ -100,27 +101,15 @@
         <button id="btnNext" class="btn btn-sm" disabled>Next</button>
     </section>
 
-    <!-- Hosts Table -->
+    <!-- Discovered Hosts -->
     <section id="hostsSection" class="hosts-section">
         <div class="section-header">
             <h2 class="section-title">Discovered Hosts</h2>
             <span id="hostsCount" class="badge badge-muted">0 hosts</span>
         </div>
-        <table id="hostsTable">
-            <thead>
-                <tr>
-                    <th>IP Address</th>
-                    <th>Hostname</th>
-                    <th>OS</th>
-                    <th>Open Ports</th>
-                    <th>MAC</th>
-                    <th>Last Seen</th>
-                </tr>
-            </thead>
-            <tbody id="hostsBody">
-                <tr><td colspan="6" class="table-empty">No hosts discovered yet. Run a scan to discover network hosts.</td></tr>
-            </tbody>
-        </table>
+        <div id="hostsGrid" class="hosts-grid">
+            <div class="table-empty">No hosts discovered yet. Run a scan to discover network hosts.</div>
+        </div>
     </section>
 
     <!-- Expanded Row Detail -->

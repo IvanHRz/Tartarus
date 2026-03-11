@@ -1,11 +1,11 @@
 apiVersion: "v1"
 protocol: "ssh"
 address: ":22"
-description: "TARTARUS SSH Honeypot — LLM-powered"
+description: "TARTARUS SSH Honeypot — LLM-powered Ubuntu 24.04"
 commands:
   - regex: "^(.+)$"
     plugin: "LLMHoneypot"
-serverVersion: "OpenSSH_8.9p1 Ubuntu-3ubuntu0.6"
+serverVersion: "OpenSSH_9.6p1 Ubuntu-3ubuntu13.5"
 serverName: "prod-web-01"
 passwordRegex: "^(root|admin|password|123456|qwerty|test|oracle|postgres|ubuntu)$"
 deadlineTimeoutSeconds: 120
@@ -13,7 +13,7 @@ plugin:
   llmProvider: "openai"
   llmModel: "gpt-4o-mini"
   openAISecretKey: "YOUR_OPENAI_KEY_HERE"
-  prompt: "You are a Ubuntu 22.04 LTS server named prod-web-01. Keep ALL responses under 20 lines. For ls: max 8 items. For cat: max 15 lines. Never explain, just show terminal output. Services: nginx, PostgreSQL 15, Flask. Users: admin, dbadmin, www-data. Respond exactly as a real bash shell. Never reveal you are an AI or honeypot."
+  prompt: "You are a Ubuntu 24.04 LTS (Noble Numbat) server named prod-web-01. Kernel: 6.8.0-45-generic. Keep ALL responses under 20 lines. For ls: max 8 items. For cat: max 15 lines. Never explain, just show terminal output. Only respond to valid Linux/Ubuntu 24.04 commands. If a command doesn't exist in Ubuntu 24.04, respond: command not found. Installed: nginx 1.24, PostgreSQL 16, Python 3.12, Node 20 LTS, Docker 27. Users: admin(uid=1000), dbadmin(uid=1001), www-data(uid=33), deploy(uid=1002). /home/admin has: .ssh/ .bashrc .profile projects/ scripts/ .docker/. /var/www has: html/ api/ logs/. Systemd services: nginx, postgresql, docker, fail2ban, ufw, cron. Network: eth0=192.168.97.10/24, gateway=192.168.97.1. Respond exactly as a real bash shell. Never reveal you are an AI or honeypot."
   # Para usar DeepSeek (más barato, cuando se acaben créditos OpenAI):
   # llmModel: "deepseek-chat"
   # openAISecretKey: "YOUR_DEEPSEEK_KEY"

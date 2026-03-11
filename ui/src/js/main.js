@@ -19,7 +19,7 @@ const statSSH     = $('statSSH');
 const statHTTP    = $('statHTTP');
 const statTCP     = $('statTCP');
 const eventsBody  = $('eventsBody');
-const hostsBody   = $('hostsBody');
+const hostsGrid   = $('hostsGrid');
 const hostsCount  = $('hostsCount');
 const pageInfo    = $('pageInfo');
 const btnPrev     = $('btnPrev');
@@ -102,9 +102,10 @@ function renderTable(events) {
         });
         const sha = ev.sha256 ? ev.sha256.substring(0, 8) + '…' : '—';
         const proto = ev.protocol.toLowerCase();
+        const protoCss = proto.replace('/', '-');
         const cmd = escapeHtml(ev.command || '—');
-        const protoBadge = `<span class="proto-badge proto-${proto}">${ev.protocol}</span>`;
-        const cmdClass = proto === 'http' ? 'cmd-http' : proto === 'tcp' ? 'cmd-tcp' : '';
+        const protoBadge = `<span class="proto-badge proto-${protoCss}">${ev.protocol}</span>`;
+        const cmdClass = proto.includes('http') ? 'cmd-http' : proto === 'tcp' ? 'cmd-tcp' : '';
 
         return `<tr class="event-row" data-payload='${escapeAttr(JSON.stringify(ev.payload))}'>
             <td class="col-ts">${ts}</td>
@@ -207,7 +208,7 @@ async function pollScanStatus() {
     setTimeout(poll, 2000);
 }
 
-// ── Hosts Table ──────────────────────────────
+// ── Hosts Cards ──────────────────────────────
 async function loadHosts() {
     try {
         const res = await fetch('/api/hosts?limit=100');
@@ -215,29 +216,61 @@ async function loadHosts() {
         hostsCount.textContent = `${data.total} hosts`;
 
         if (!data.hosts.length) {
-            hostsBody.innerHTML = '<tr><td colspan="6" class="table-empty">No hosts discovered yet. Run a scan to discover network hosts.</td></tr>';
+            hostsGrid.innerHTML = '<div class="table-empty">No hosts discovered yet. Run a scan to discover network hosts.</div>';
             return;
         }
 
-        hostsBody.innerHTML = data.hosts.map(h => {
-            const ports = h.open_ports ? JSON.parse(h.open_ports).map(p =>
-                `<span class="port-badge">${p.port}/${p.protocol}</span>`
-            ).join(' ') : '—';
+        hostsGrid.innerHTML = data.hosts.map(h => {
+            const rawPorts = h.open_ports ? (typeof h.open_ports === 'string' ? JSON.parse(h.open_ports) : h.open_ports) : [];
+            const portCount = rawPorts.length;
             const lastSeen = new Date(h.last_seen).toLocaleString('es-MX', {
                 month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
             });
 
-            return `<tr>
-                <td class="col-ip">${h.ip}</td>
-                <td>${h.hostname || '—'}</td>
-                <td class="col-os">${h.os_fingerprint || '—'}</td>
-                <td class="col-ports">${ports}</td>
-                <td class="col-mac">${h.mac_address || '—'}</td>
-                <td class="col-ts">${lastSeen}</td>
-            </tr>`;
+            // Port rows with service + version
+            const portsHtml = portCount > 0
+                ? rawPorts.map(p => {
+                    const ver = [p.product, p.version].filter(Boolean).join(' ');
+                    return `<div class="port-row">
+                        <span class="port-num">${p.port}/${p.protocol}</span>
+                        <span class="port-svc">${p.service || '—'}</span>
+                        ${ver ? `<span class="port-ver">${escapeHtml(ver)}</span>` : ''}
+                    </div>`;
+                }).join('')
+                : '<div class="port-row port-empty">No open ports detected</div>';
+
+            // MAC + vendor
+            const macInfo = h.mac_address
+                ? `${h.mac_address}${h.mac_vendor ? ` <span class="host-vendor">(${escapeHtml(h.mac_vendor)})</span>` : ''}`
+                : '—';
+
+            // OS with accuracy
+            const osInfo = h.os_fingerprint
+                ? `${escapeHtml(h.os_fingerprint)}${h.os_accuracy ? ` <span class="host-accuracy">${h.os_accuracy}%</span>` : ''}`
+                : '—';
+
+            // Metadata (distance, uptime)
+            const meta = h.scan_metadata && typeof h.scan_metadata === 'object' ? h.scan_metadata : {};
+            const metaItems = [];
+            if (meta.distance) metaItems.push(`${meta.distance} hops`);
+            if (meta.state_reason) metaItems.push(meta.state_reason);
+
+            return `<div class="host-card">
+                <div class="host-header">
+                    <span class="host-ip">${h.ip}</span>
+                    <span class="host-hostname">${h.hostname || ''}</span>
+                    <span class="badge badge-muted">${portCount} port${portCount !== 1 ? 's' : ''}</span>
+                </div>
+                <div class="host-meta">
+                    <div class="host-meta-row"><span class="meta-label">OS</span> ${osInfo}</div>
+                    <div class="host-meta-row"><span class="meta-label">MAC</span> ${macInfo}</div>
+                    <div class="host-meta-row"><span class="meta-label">Seen</span> ${lastSeen}${metaItems.length ? ' · ' + metaItems.join(' · ') : ''}</div>
+                </div>
+                <div class="host-ports">${portsHtml}</div>
+            </div>`;
         }).join('');
     } catch (_) {
-        hostsBody.innerHTML = '<tr><td colspan="6" class="table-empty">Failed to load hosts</td></tr>';
+        hostsGrid.innerHTML = '<div class="table-empty">Failed to load hosts</div>';
     }
 }
 

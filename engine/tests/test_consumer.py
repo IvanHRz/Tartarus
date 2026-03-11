@@ -86,6 +86,18 @@ SAMPLE_TCP_EVENT = json.dumps({
     "Body": "GET / HTTP/1.1 Host: localhost:8080",
 }).encode()
 
+# TCP event with HTTP content in Body → should be detected as TCP/HTTP
+SAMPLE_TCP_HTTP_EVENT = json.dumps({
+    "DateTime": "2026-03-11T07:00:00Z",
+    "RemoteAddr": "10.0.0.5:55000",
+    "Protocol": "TCP",
+    "Msg": "TCP connection",
+    "ID": "tcp-http-001",
+    "SourceIp": "10.0.0.5",
+    "SourcePort": "55000",
+    "Body": "GET / HTTP/1.1 Host: 172.17.104.182:8080 User-Agent: nmap",
+}).encode()
+
 MALFORMED_EVENT = b"this is not json{{"
 
 NO_IP_EVENT = json.dumps({
@@ -143,10 +155,10 @@ def test_parse_http_event():
 
 
 def test_parse_tcp_event():
-    """Parse a TCP honeypot event with Body data."""
+    """Parse a TCP honeypot event with HTTP-like Body → TCP/HTTP."""
     result = _parse_event(SAMPLE_TCP_EVENT)
     assert result is not None
-    assert result["protocol"] == "TCP"
+    assert result["protocol"] == "TCP/HTTP"
     assert result["command"] == "GET / HTTP/1.1 Host: localhost:8080"
 
 
@@ -229,6 +241,14 @@ def test_http_dest_port_default():
     """HTTP event with ServerAddr :80 → dest_port 80."""
     result = _parse_event(SAMPLE_HTTP_EVENT)
     assert result["dest_port"] == 80
+
+
+def test_tcp_http_heuristic():
+    """TCP body starting with HTTP method → protocol becomes TCP/HTTP."""
+    result = _parse_event(SAMPLE_TCP_HTTP_EVENT)
+    assert result is not None
+    assert result["protocol"] == "TCP/HTTP"
+    assert result["command"].startswith("GET / HTTP/1.1")
 
 
 # ── Service Config Tests ───────────────────────────────
