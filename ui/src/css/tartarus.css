@@ -1,4 +1,4 @@
-/* TARTARUS — Design System (Phase 0)
+/* TARTARUS — Design System
    Color palette from ejemplo.html reference */
 
 :root {
@@ -14,6 +14,7 @@
     --red:    #f85149;
     --orange: #e3b341;
     --purple: #bc8cff;
+    --mono:   'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
 
 /* ── Reset ─────────────────────────────────── */
@@ -43,19 +44,12 @@ body {
     color: var(--red);
     letter-spacing: 2px;
 }
-.hdr-sub {
-    font-size: 12px;
-    color: var(--muted);
-}
-.hdr-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
+.hdr-sub { font-size: 12px; color: var(--muted); }
+.hdr-right { display: flex; align-items: center; gap: 12px; }
 .hdr-version {
     font-size: 11px;
     color: var(--muted);
-    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-family: var(--mono);
 }
 
 /* ── Badges ────────────────────────────────── */
@@ -71,58 +65,241 @@ body {
 .badge-yellow { background: rgba(210, 153, 34, 0.2);  color: var(--yellow); border: 1px solid rgba(210, 153, 34, 0.3); }
 .badge-red    { background: rgba(248, 81, 73, 0.2);   color: var(--red);    border: 1px solid rgba(248, 81, 73, 0.3); }
 
-/* ── Main ──────────────────────────────────── */
-#main {
-    padding: 24px;
+/* ── Stats Strip ───────────────────────────── */
+.stats-strip {
     display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 24px;
+    overflow-x: auto;
 }
-
-/* ── Cards ─────────────────────────────────── */
-.card {
+.stat-card {
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 20px;
-    min-width: 320px;
+    padding: 16px 20px;
+    min-width: 130px;
     flex: 1;
-    max-width: 480px;
+    text-align: center;
+    transition: border-color 0.2s;
 }
-.card-title {
-    font-size: 13px;
-    font-weight: 600;
+.stat-card:hover { border-color: var(--muted); }
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: var(--mono);
+    line-height: 1.2;
+}
+.stat-label {
+    font-size: 11px;
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 16px;
+    margin-top: 4px;
+}
+.stat-blue   .stat-value { color: var(--blue); }
+.stat-green  .stat-value { color: var(--green); }
+.stat-red    .stat-value { color: var(--red); }
+.stat-orange .stat-value { color: var(--orange); }
+.stat-purple .stat-value { color: var(--purple); }
+
+/* ── Filter Bar ────────────────────────────── */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 24px 12px;
+    flex-wrap: wrap;
+}
+.filter-select, .filter-input {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.filter-select:focus, .filter-input:focus {
+    border-color: var(--blue);
+}
+.filter-input { width: 180px; }
+.filter-input::placeholder { color: var(--muted); }
+.filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    margin-left: auto;
+}
+.filter-toggle input { accent-color: var(--blue); }
+
+/* ── Buttons ───────────────────────────────── */
+.btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: var(--border); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-blue { border-color: rgba(88, 166, 255, 0.4); color: var(--blue); }
+.btn-blue:hover { background: rgba(88, 166, 255, 0.15); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* ── Events Table ──────────────────────────── */
+.table-wrap {
+    padding: 0 24px;
+    overflow-x: auto;
+}
+#eventsTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+#eventsTable thead th {
+    background: var(--bg3);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+#eventsTable tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+    vertical-align: top;
+}
+.event-row {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.event-row:hover {
+    background: rgba(88, 166, 255, 0.06);
+}
+.col-ts {
+    font-family: var(--mono);
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--muted);
+}
+.col-ip {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--blue);
+}
+.col-port {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+}
+.col-cmd {
+    max-width: 350px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 12px;
+}
+.col-hash {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+}
+.table-empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 0 !important;
+    font-style: italic;
 }
 
-/* ── Health checks ─────────────────────────── */
-.health-grid { display: flex; flex-direction: column; }
-.check-row {
+/* Protocol badges */
+.proto-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.proto-ssh  { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+.proto-http { background: rgba(227, 179, 65, 0.15); color: var(--orange); }
+.proto-tcp  { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+
+/* ── Pagination ────────────────────────────── */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px 24px;
+}
+.page-info {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+}
+
+/* ── Event Detail Panel ────────────────────── */
+.event-detail {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 45vh;
+    background: var(--bg2);
+    border-top: 2px solid var(--blue);
+    overflow-y: auto;
+    z-index: 100;
+    transition: transform 0.2s;
+}
+.event-detail.hidden {
+    display: none;
+}
+.detail-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
+    padding: 10px 20px;
     border-bottom: 1px solid var(--border);
-    font-size: 14px;
+    position: sticky;
+    top: 0;
+    background: var(--bg2);
 }
-.check-row:last-child { border-bottom: none; }
-.check-name { color: var(--text); font-weight: 500; }
-.check-status { font-weight: 600; font-family: 'SF Mono', monospace; font-size: 13px; }
-.check-ok   { color: var(--green); }
-.check-fail { color: var(--red); }
+.detail-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--blue);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.detail-json {
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
 
-/* ── Info list ─────────────────────────────── */
-.info-list { display: flex; flex-direction: column; }
-.info-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-}
-.info-row:last-child { border-bottom: none; }
-.info-label { color: var(--muted); }
-.info-value { color: var(--text); font-family: 'SF Mono', monospace; font-size: 12px; }
+/* ── Scrollbar ─────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }

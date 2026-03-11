@@ -14,46 +14,84 @@
         </div>
         <div class="hdr-right">
             <span id="statusBadge" class="badge badge-yellow">Connecting...</span>
-            <span class="hdr-version">v0.1.0</span>
+            <span class="hdr-version">v0.2.0</span>
         </div>
     </header>
 
-    <main id="main">
-        <div class="card health-card">
-            <div class="card-title">Infrastructure Health</div>
-            <div id="healthChecks" class="health-grid">
-                <div class="check-row">
-                    <span class="check-name">Loading...</span>
-                </div>
-            </div>
+    <!-- Stats Cards -->
+    <section id="stats" class="stats-strip">
+        <div class="stat-card stat-blue">
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-label">Total Events</div>
         </div>
+        <div class="stat-card stat-green">
+            <div class="stat-value" id="statIPs">—</div>
+            <div class="stat-label">Unique IPs</div>
+        </div>
+        <div class="stat-card stat-red">
+            <div class="stat-value" id="statSSH">—</div>
+            <div class="stat-label">SSH</div>
+        </div>
+        <div class="stat-card stat-orange">
+            <div class="stat-value" id="statHTTP">—</div>
+            <div class="stat-label">HTTP</div>
+        </div>
+        <div class="stat-card stat-purple">
+            <div class="stat-value" id="statTCP">—</div>
+            <div class="stat-label">TCP</div>
+        </div>
+    </section>
 
-        <div class="card info-card">
-            <div class="card-title">Phase 0 — Stack Verification</div>
-            <div class="info-list">
-                <div class="info-row">
-                    <span class="info-label">Beelzebub</span>
-                    <span class="info-value">SSH :2222 | HTTP :8880</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Engine</span>
-                    <span class="info-value">FastAPI :9000</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">PostgreSQL</span>
-                    <span class="info-value">:5432</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Redis</span>
-                    <span class="info-value">:6379</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">RabbitMQ</span>
-                    <span class="info-value">:5672 | Mgmt :15672</span>
-                </div>
-            </div>
+    <!-- Filters -->
+    <section id="filters" class="filter-bar">
+        <select id="filterProtocol" class="filter-select">
+            <option value="">All Protocols</option>
+            <option value="SSH">SSH</option>
+            <option value="HTTP">HTTP</option>
+            <option value="TCP">TCP</option>
+        </select>
+        <input id="filterIP" type="text" class="filter-input" placeholder="Source IP...">
+        <button id="btnRefresh" class="btn btn-blue">Refresh</button>
+        <label class="filter-toggle">
+            <input type="checkbox" id="autoRefresh" checked>
+            Auto-refresh
+        </label>
+    </section>
+
+    <!-- Events Table -->
+    <section id="tableWrap" class="table-wrap">
+        <table id="eventsTable">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Source IP</th>
+                    <th>Port</th>
+                    <th>Protocol</th>
+                    <th>Command</th>
+                    <th>SHA256</th>
+                </tr>
+            </thead>
+            <tbody id="eventsBody">
+                <tr><td colspan="6" class="table-empty">Loading events...</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Pagination -->
+    <section id="pagination" class="pagination-bar">
+        <button id="btnPrev" class="btn btn-sm" disabled>Prev</button>
+        <span id="pageInfo" class="page-info">Page 1</span>
+        <button id="btnNext" class="btn btn-sm" disabled>Next</button>
+    </section>
+
+    <!-- Expanded Row Detail -->
+    <div id="eventDetail" class="event-detail hidden">
+        <div class="detail-header">
+            <span class="detail-title">Event Payload</span>
+            <button id="btnCloseDetail" class="btn btn-sm">Close</button>
         </div>
-    </main>
+        <pre id="detailContent" class="detail-json"></pre>
+    </div>
 
     <script src="js/main.js"></script>
 </body>

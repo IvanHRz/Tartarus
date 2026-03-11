@@ -137,7 +137,7 @@ async def consume_events(pg_pool, redis=None) -> None:
             async with connection:
                 channel = await connection.channel()
                 await channel.set_qos(prefetch_count=50)
-                queue = await channel.declare_queue(QUEUE_NAME, durable=True)
+                queue = await channel.declare_queue(QUEUE_NAME, durable=False)
 
                 logger.info(
                     "Consumer connected — listening on queue '%s'", QUEUE_NAME
